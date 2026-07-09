@@ -116,6 +116,11 @@ def _fftw_ext_kwargs():
         else:
             win_lib = r'C:\vcpkg\installed\x64-windows\lib'
         kwargs['library_dirs'] = [win_lib]
+        # MSVC in C mode detects _Complex_I from <complex.h> and then tries
+        # "typedef _Complex double fftw_complex" which MSVC does not support.
+        # FFTW_NO_Complex forces the double[2] fallback, matching the pyx
+        # ctypedef double fftw_complex[2] declaration.
+        kwargs['define_macros'] = [('FFTW_NO_Complex', None)]
     return kwargs
 
 with open("README.md", "r", encoding="utf-8") as fh:
