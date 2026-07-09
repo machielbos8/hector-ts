@@ -7,3 +7,6 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[tool.cibuildwheel.windows]
+# FFTW_BIN_DIR must be set in the CI environment before running cibuildwheel.
+repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel} --add-path \"{env:FFTW_BIN_DIR}\""

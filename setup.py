@@ -19,8 +19,13 @@ def _user_fftw_lib():
 def _fftw_include_dirs():
     """Return a list of include directories that contain fftw3.h, portably."""
     # 1. Honour an explicit override (useful on Windows or exotic installs).
+    #    Accept both FFTW_DIR=/path/to/include (direct) and FFTW_DIR=/path/to/prefix
+    #    (vcpkg layout: prefix/include/fftw3.h).
     fftw_dir = os.environ.get('FFTW_DIR')
     if fftw_dir:
+        inc_sub = os.path.join(fftw_dir, 'include')
+        if os.path.isfile(os.path.join(inc_sub, 'fftw3.h')):
+            return [inc_sub]
         return [fftw_dir]
 
     # 2. Prefer a user-local FFTW (e.g., compiled with AVX-512).
