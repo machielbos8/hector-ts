@@ -1,0 +1,29 @@
+# Cython build artifacts
+*.c
+*.html
+*.so
+*.pyd
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual environments
+env/
+venv/
+.env/
+
+# Generated example output (run these yourself)
+examples/*/fin_files/
+examples/*/pre_files/
+examples/*/stage_files/
+examples/*/raw_files/*.ncf
+examples/*/ngl_files/
+examples/*/pre_ngl_files/
+
+# macOS
+.DS_Store

@@ -1,0 +1,92 @@
+# Hector v3.0
+
+Hector estimates trends, periodic signals, and offsets in geodetic time series with correlated noise. It uses Restricted Maximum Likelihood Estimation (RMLE) and supports several noise models (GGM/flicker, power-law, AR(1), Matérn, white noise and combinations thereof).
+
+Hector v3.0 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.com/hector/). The core Toeplitz factorisation uses the Generalised Schur Algorithm (O(*n* log²*n*)) instead of Durbin-Levinson (O(*n*²)), and data gaps are handled with an FFT-based spectral approximation. The result is 6–27× faster for typical GNSS series lengths:
+
+| Series | Gaps | Hector v3.0 (s) | Hector C++ v2.2 (s) | Speedup |
+|:---    |  ---:|            ---:|                ---:|    ---: |
+| 10 yr  |   0% |            0.45 |                 5.2 |   11.6× |
+| 20 yr  |   0% |             1.7 |                14.4 |    8.5× |
+| 30 yr  |   0% |             3.2 |                30.9 |    9.7× |
+| 40 yr  |   0% |             4.4 |                91.9 |   20.7× |
+| 10 yr  |  10% |             1.3 |                 7.3 |    5.8× |
+| 30 yr  |  10% |            14.2 |                85.4 |    6.0× |
+| 40 yr  |  10% |            24.0 |               220.1 |    9.2× |
+
+*Benchmarked on Apple M4 Pro, GGM+White noise model, including offset estimation.*
+
+## Installation
+
+Hector requires the [FFTW3](https://www.fftw.org/) library.  Install it first:
+
+```bash
+# macOS (Homebrew)
+brew install fftw
+
+# Ubuntu / Debian
+sudo apt install libfftw3-dev
+
+# conda
+conda install -c conda-forge fftw
+```
+
+Then install Hector:
+
+```bash
+pip install hector-ts
+```
+
+The Cython extensions are compiled from source during `pip install`, so a C compiler (gcc or clang) must be available.
+
+## Programs
+
+| Name | Description |
+|:--- |:--- |
+| `estimatetrend` | Estimate trend, seasonal signals, and offsets using RMLE |
+| `estimatespectrum` | Welch periodogram of the residuals |
+| `removeoutliers` | Flag and remove outliers before trend estimation |
+| `findoffsets` | Automated forward search for offset epochs |
+| `find_all_offsets` | Multivariate (E+N+U) offset search on NCF files |
+| `simulatenoise` | Generate synthetic coloured-noise time series |
+| `estimate_all_trends` | Batch trend estimation on all files in `obs_files/` |
+| `ncfgen` | Create a multi-channel NCF (NetCDF4) time-series file |
+| `ncfdump` | Inspect or export an NCF file |
+| `plot_ts` | Quick time-series plot from a mom file |
+| `date2mjd` | Convert calendar date to Modified Julian Date |
+| `mjd2date` | Inverse of `date2mjd` |
+| `convert_rlrdata2mom` | Convert PSMSL RLR data to mom format |
+| `predict_error` | Predict trend uncertainty as a function of series length |
+
+## Recommended directory structure
+
+```
+obs_files/    raw time series (mom or NCF format)
+pre_files/    after outlier removal
+fin_files/    fitted model output from estimatetrend
+```
+
+Run `estimate_all_trends` in a directory that follows this layout to process all files in `obs_files/` automatically.
+
+## Examples
+
+Six worked examples are included in the `examples/` directory:
+
+| Example | Topic |
+|:--- |:--- |
+| [ex1](examples/ex1/README.md) | Synthetic GNSS: removeoutliers → estimatetrend → PSD |
+| [ex2](examples/ex2/README.md) | Monthly sea-level data from Cascais tide gauge |
+| [ex3](examples/ex3/README.md) | Multi-station GNSS batch processing |
+| [ex4](examples/ex4/README.md) | Trend estimation with known offsets |
+| [ex5](examples/ex5/README.md) | Offset detection on a real GNSS station |
+| [ex6](examples/ex6/README.md) | Multi-station offset detection from NGL tenv files |
+
+## Reference
+
+If you use Hector in your research, please cite:
+
+> Bos, M.S. (2026). Fast noise analysis and offset detection for continuous GNSS time series. *Journal of Geodesy* (submitted).
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
