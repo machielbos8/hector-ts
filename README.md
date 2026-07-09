@@ -89,4 +89,6 @@ If you use Hector in your research, please cite:
 
 ## License
 
-MIT License. See [LICENSE](LICENSE).
+Free for academic, research, and educational use. Commercial use requires a
+separate license from [TeroMovigo – Earth Innovation Lda](https://teromovigo.com).
+See [LICENSE](LICENSE) for full terms.

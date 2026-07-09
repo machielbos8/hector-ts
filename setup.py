@@ -134,7 +134,7 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: GIS",
         "Topic :: Scientific/Engineering :: Mathematics",
         "Topic :: Scientific/Engineering :: Physics",
-        "License :: OSI Approved :: MIT License",
+        "License :: Free for non-commercial use",
         "Programming Language :: Python :: 3",
         "Programming Language :: Cython",
         "Operating System :: OS Independent",
