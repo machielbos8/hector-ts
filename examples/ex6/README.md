@@ -45,7 +45,7 @@ The `obs_files/` directory already contains the converted NCF files.  To
 regenerate from the raw tenv files:
 
 ```bash
-python3 convert_tenv2netcdf.py --start-mjd 51179
+convert_tenv2netcdf --start-mjd 51179
 ```
 
 The `--start-mjd 51179` flag discards data before 1 January 1999.  Data
@@ -92,7 +92,6 @@ ex6/
 ├── <STATION>.tenv          raw NGL tenv files
 ├── steps.txt               NGL offset catalog
 ├── steps_readme.txt        NGL catalog column documentation
-├── convert_tenv2netcdf.py  tenv → NCF conversion script
 ├── removeoutliers.ctl      Step 2 outlier-removal settings
 ├── estimatetrend.ctl       Step 2 trend-estimation settings
 └── obs_files/              NCF time-series files (pre-computed)

@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-convert_tenv2netcdf.py
-----------------------
+convert_tenv2netcdf
+-------------------
 Convert Nevada Geodetic Laboratory (NGL) tenv / tenv3 files to NCF format
-for use with hector-ts (removeoutliers, estimatetrend, findoffsets).
+for use with Hector (removeoutliers, estimatetrend, findoffsets).
 
 Usage
 -----
     # Convert one station (looks for KOSG.tenv3 or KOSG.tenv in that order):
-    python3 convert_tenv2netcdf.py -s KOSG
+    convert_tenv2netcdf -s KOSG
 
     # Convert all *.tenv3 / *.tenv files in the current directory:
-    python3 convert_tenv2netcdf.py
+    convert_tenv2netcdf
 
 Output
 ------
@@ -87,7 +87,6 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 from hector.ncf import NCF  # noqa: E402
 
 
