@@ -1,3 +1,6 @@
+# Wheel build output
+wheelhouse/
+
 # Cython build artifacts
 *.c
 *.html
