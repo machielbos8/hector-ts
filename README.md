@@ -18,26 +18,54 @@ Hector v3.0 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.c
 
 ## Installation
 
-Hector requires the [FFTW3](https://www.fftw.org/) library.  Install it first:
+### Windows
+
+Pre-built wheels are available for Python 3.10–3.13.  FFTW3 is bundled
+inside the wheel, so no separate installation is needed:
+
+```bat
+pip install hector-ts
+```
+
+### macOS (Intel and Apple Silicon)
+
+Install FFTW3 via Homebrew, then install Hector:
 
 ```bash
-# macOS (Homebrew)
 brew install fftw
+pip install hector-ts
+```
 
+Hector is compiled from source during `pip install`, so Xcode Command Line
+Tools must be present (`xcode-select --install`).  If the build fails for
+any reason, conda provides a self-contained alternative:
+
+```bash
+conda install -c conda-forge fftw
+pip install hector-ts
+```
+
+### Linux
+
+Install the FFTW3 development package for your distribution, then install
+Hector:
+
+```bash
 # Ubuntu / Debian
 sudo apt install libfftw3-dev
 
-# conda
-conda install -c conda-forge fftw
+# CentOS / RHEL / Fedora
+sudo yum install fftw-devel        # or: sudo dnf install fftw-devel
 ```
-
-Then install Hector:
 
 ```bash
 pip install hector-ts
 ```
 
-The Cython extensions are compiled from source during `pip install`, so a C compiler (gcc or clang) must be available.
+Pre-built manylinux wheels are available for Python 3.10–3.13 on x86\_64,
+so `pip install` may use a wheel directly without needing the FFTW3 headers.
+The development package is only required when building from source (e.g. on
+ARM64 or other architectures).
 
 ## Programs
 
