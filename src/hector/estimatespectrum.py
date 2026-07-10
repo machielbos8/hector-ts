@@ -214,6 +214,10 @@ def main():
        					help='add noise model spectrum to graph')
     parser.add_argument('-i', required=False, default='estimatespectrum.ctl', \
                                       dest='fname', help='Name of control file')
+    parser.add_argument('-j', required=False, default='estimatetrend.json',
+                              dest='json_file',
+                              help='JSON file with noise model parameters '
+                                   '(default: estimatetrend.json)')
 
     args = parser.parse_args()
 
@@ -223,6 +227,7 @@ def main():
     save_png = args.png
     plot_noisemodels = args.model
     fname = args.fname
+    json_file = args.json_file
 
     #--- Read control parameters into dictionary (singleton class)
     control = Control(fname)
@@ -267,15 +272,15 @@ def main():
     #--- Which noise models 
     if plot_noisemodels==True:
         #--- parse output
-        if os.path.exists('estimatetrend.json')==False:
-            print('There is no estimatetrend.json')
+        if os.path.exists(json_file)==False:
+            print('There is no {0:s}'.format(json_file))
             sys.exit()
         try:
-            fp_dummy = open('estimatetrend.json','r')
+            fp_dummy = open(json_file,'r')
             results = json.load(fp_dummy)
             fp_dummy.close()
         except:
-            print('Could not read estimatetrend.json')
+            print('Could not read {0:s}'.format(json_file))
             sys.exit()
 
         #--- Get list of noise model names

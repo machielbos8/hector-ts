@@ -89,6 +89,7 @@ class Observations(metaclass=SingletonMeta):
         self.postseismicexp = []
         self.postseismiclog = []
         self.ssetanh = []
+        self.breaks = []
         self.sampling_period = 0.0
         self.F = None
         self.percentage_gaps = None
@@ -229,6 +230,8 @@ class Observations(metaclass=SingletonMeta):
                     if len(cols)>2:
                         if cols[0]=='#' and cols[1]=='offset':
                             self.offsets.append(float(cols[2]))
+                        elif cols[0]=='#' and cols[1]=='break':
+                            self.breaks.append(float(cols[2]))
                         elif cols[0]=='#' and cols[1]=='exp':
                             mjd = float(cols[2])
                             T   = float(cols[3])
@@ -411,6 +414,9 @@ class Observations(metaclass=SingletonMeta):
         #--- Write header offsets
         for i in range(0,len(self.offsets)):
             fp.write('# offset {0:10.4f}\n'.format(self.offsets[i]))
+        #--- Write header break epochs (multi-trend)
+        for i in range(0,len(self.breaks)):
+            fp.write('# break {0:10.4f}\n'.format(self.breaks[i]))
         #--- Write header exponential decay after seismic event
         for i in range(0,len(self.postseismicexp)):
             [mjd,T] = self.postseismicexp[i]

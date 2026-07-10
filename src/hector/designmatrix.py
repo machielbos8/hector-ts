@@ -123,6 +123,15 @@ class DesignMatrix(metaclass=SingletonMeta):
             self.n_ssetanh = len(self.ts.ssetanh)
         else:
             self.n_ssetanh = 0
+        try:
+            estimate_multitrend = control.params["estimatemultitrend"]
+        except:
+            estimate_multitrend = False
+        if estimate_multitrend:
+            self.n_breaks = len(self.ts.breaks)
+        else:
+            self.n_breaks = 0
+
         self.n_channels = 0
         self.channel_names = []
         try:
@@ -199,7 +208,8 @@ class DesignMatrix(metaclass=SingletonMeta):
         self.th = 0.5*(self.ts.data.index[0] + self.ts.data.index[-1])
  
         n = self.n_degrees + 2*self.n_periods + self.n_offsets + \
-                self.n_postseismicexp + self.n_postseismiclog + self.n_ssetanh  + self.n_channels
+                self.n_postseismicexp + self.n_postseismiclog + self.n_ssetanh + \
+                self.n_channels + self.n_breaks
                                            
         self.H = np.zeros((m,n))
         for i in range(0,m):
@@ -244,6 +254,16 @@ class DesignMatrix(metaclass=SingletonMeta):
                 [mjd,T] = self.ts.ssetanh[j]
                 if mjd<t+EPS:
                     self.H[i,k+j] = 0.5 * ( math.tanh((t-mjd)/T) - 1.0)
+
+            #--- Multi-trend ramp columns: max(0, t_raw - t_break_j)
+            if self.n_breaks > 0:
+                k_break = self.n_degrees + 2*self.n_periods + self.n_offsets + \
+                          self.n_postseismicexp + self.n_postseismiclog + \
+                          self.n_ssetanh + self.n_channels
+                t_raw = self.ts.data.index[i]
+                for j in range(self.n_breaks):
+                    if t_raw > self.ts.breaks[j] + EPS:
+                        self.H[i, k_break + j] = t_raw - self.ts.breaks[j]
 
             #--- Geophysical signal columns filled after the loop via interp1d
 
@@ -411,7 +431,22 @@ class DesignMatrix(metaclass=SingletonMeta):
                 print('scale factor of {0:s} : {1:7.2f} +/- {2:5.2f} {3:s}'.format(\
                                     self.channel_names[j],theta[i],error[i],self.phys_unit))
                 i += 1
-		         
+            if self.n_breaks > 0:
+                seg_slope = ds * theta[1] if self.n_degrees > 1 else 0.0
+                print('Piecewise trend segments:')
+                print('  segment 1 (before {0:.1f}) : {1:7.3f} {2:s}/yr'.format(
+                      self.ts.breaks[0], seg_slope, self.phys_unit))
+                for j in range(self.n_breaks):
+                    dslope = ds * theta[i]
+                    dslope_err = ds * error[i]
+                    seg_slope += dslope
+                    end_lbl = ('{0:.1f}'.format(self.ts.breaks[j+1])
+                               if j+1 < self.n_breaks else 'end')
+                    print('  slope change at {0:.1f}  : {1:+7.3f} +/- {2:.3f} {3:s}/yr'.format(
+                          self.ts.breaks[j], dslope, dslope_err, self.phys_unit))
+                    print('  segment {0:d} ({1:.1f} - {2:s}) : {3:7.3f} {4:s}/yr'.format(
+                          j+2, self.ts.breaks[j], end_lbl, seg_slope, self.phys_unit))
+                    i += 1
 
         #--- JSON
         output['time_bias'] = self.th
@@ -469,6 +504,16 @@ class DesignMatrix(metaclass=SingletonMeta):
             output['scale_factor_names']  = self.channel_names
             output['scale_factor_values'] = theta[i:i+self.n_channels].tolist()
             output['scale_factor_sigmas'] = error[i:i+self.n_channels].tolist()
+        i += self.n_channels
+        if self.n_breaks > 0:
+            base = ds * theta[1] if self.n_degrees > 1 else 0.0
+            seg_slopes = [base]
+            for j in range(self.n_breaks):
+                seg_slopes.append(seg_slopes[-1] + ds * theta[i + j])
+            output['break_epochs']        = self.ts.breaks
+            output['break_trend_changes'] = (ds * theta[i:i+self.n_breaks]).tolist()
+            output['break_trend_sigmas']  = (ds * error[i:i+self.n_breaks]).tolist()
+            output['trend_segments']      = seg_slopes
         output['PhysicalUnit'] = self.phys_unit
 
 

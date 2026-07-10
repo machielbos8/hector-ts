@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# This program uses the estimated noise models parameters to predict the 
-# trend error for given number of observations.
+# This program uses the estimated noise model parameters to predict the
+# trend uncertainty as a function of observation span.
 #
 # This file is part of Hector 3.0.
 #
@@ -15,11 +15,12 @@
 # 28/6/2026 Machiel Bos
 #===============================================================================
 
-import os
 import math
-import time
-import json
+import os
 import sys
+import json
+import tempfile
+import argparse
 import numpy as np
 from matplotlib import pyplot as plt
 from hector.control import Control
@@ -28,14 +29,8 @@ from hector.ggm import GGM
 from hector.powerlaw import Powerlaw
 from hector.varyingannual import VaryingAnnual
 from hector.ar1 import AR1
+from hector.arfima import ARFIMA
 from hector.ammargrag import AmmarGrag
-import argparse
-from pathlib import Path
-
-#===============================================================================
-# Subroutines
-#===============================================================================
-
 
 #===============================================================================
 # Main program
@@ -43,199 +38,250 @@ from pathlib import Path
 
 def main():
 
-    #--- Parse command line arguments in a bit more professional way
-    parser = argparse.ArgumentParser(description= 'Predict trend error')
+    parser = argparse.ArgumentParser(description='Predict trend uncertainty')
 
-    #--- List arguments that can be given 
     parser.add_argument('-graph', action='store_true', required=False,
-       					help='No graph is shown on screen')
-    parser.add_argument('-seasonal', action='store_true',required=False,
-       					help='Add yearly signal')
-    parser.add_argument('-dt', required=False, default='1', \
-                                           dest='dt', help='sampling period')
-    parser.add_argument('-t0', required=False, default='730', \
-                                           dest='t0', help='t0')
-    parser.add_argument('-t1', required=False, default='7300', \
-                                           dest='t1', help='t1')
-    parser.add_argument('-i', required=False, default='estimatetrend.json', \
-                                          dest='fname', help='json filename')
+                        help='Show graph on screen')
+    parser.add_argument('-seasonal', action='store_true', required=False,
+                        help='Include annual signal in the design matrix')
+    parser.add_argument('-dt', required=False, default='1',
+                        dest='dt', help='Sampling period (days, default 1)')
+    parser.add_argument('-t0', required=False, default='730',
+                        dest='t0', help='Start of output span in sampling units (default 730)')
+    parser.add_argument('-t1', required=False, default='7300',
+                        dest='t1', help='End of output span in sampling units (default 7300)')
+    parser.add_argument('-i', required=False, default='estimatetrend.json',
+                        dest='fname', help='JSON file from estimatetrend (default estimatetrend.json)')
+    parser.add_argument('-eps', action='store_true', required=False,
+                        help='Save graph to an eps file')
+    parser.add_argument('-png', action='store_true', required=False,
+                        help='Save graph to a png file')
 
     args = parser.parse_args()
 
-    #--- parse command-line arguments
-    graph = args.graph
+    graph    = args.graph
     seasonal = args.seasonal
-    fname = args.fname
-    t0 = float(args.t0)
-    t1 = float(args.t1)
-    dt = float(args.dt)
-    m  = int(t1/dt + 1.0e-6)+1
+    fname    = args.fname
+    t0       = float(args.t0)
+    t1       = float(args.t1)
+    dt       = float(args.dt)
+    save_eps = args.eps
+    save_png = args.png
+    m        = int(t1 / dt + 1.0e-6) + 1
 
-    #--- Read noise model parameters
-    if os.path.exists(fname)==False:
-        print('There is no {0:s}'.format(fname))
+    #--- Read noise model parameters from JSON
+    if not os.path.exists(fname):
+        print('Cannot find {0:s}'.format(fname))
         sys.exit()
     try:
-        fp_dummy = open('{0:s}'.format(fname),'r')
-        results = json.load(fp_dummy)
-        fp_dummy.close()
-    except:
-        print('Could not read estimatetrend.json')
+        with open(fname, 'r') as fp:
+            results = json.load(fp)
+    except Exception as e:
+        print('Could not read {0:s}: {1:s}'.format(fname, str(e)))
         sys.exit()
 
-    #--- Get list of noise model names
-    noisemodels = results['NoiseModel']
-
-    #--- Create dummy control file
-    with open('dummy.ctl','w') as fp:
-        fp.write('NoiseModels  ')
-        for noisemodel in noisemodels.keys():
-            fp.write(' {0:s}'.format(noisemodel))
-        fp.write('\n')
-        fp.write('Verbose    yes\n')
-   
-    #--- To get pretty figures, get units
+    noisemodels   = results['NoiseModel']
     physical_unit = results['PhysicalUnit']
-    time_unit = results['TimeUnit']
-    if not time_unit=='days' and seasonal==True:
+    time_unit     = results['TimeUnit']
+
+    if not time_unit == 'days' and seasonal:
         print('Cannot add seasonal signal when time unit is not days')
         sys.exit()
 
-    #--- Read control parameters into dictionary (singleton class)
-    control = Control('dummy.ctl')
+    #--- Detect ARFIMA/ARMA order from JSON so we can write dummy.ctl correctly
+    arfima_p = 0
+    arfima_q = 0
+    for nm, vals in noisemodels.items():
+        if nm in ('ARFIMA', 'ARMA'):
+            arfima_p = sum(1 for k in vals if k.startswith('AR'))
+            arfima_q = sum(1 for k in vals if k.startswith('MA'))
+            break
+
+    #--- Write a temporary control file so the Control singleton can initialise
+    tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.ctl', delete=False)
+    try:
+        tmp.write('NoiseModels')
+        for nm in noisemodels.keys():
+            tmp.write('  {0:s}'.format(nm))
+        tmp.write('\n')
+        tmp.write('Verbose    yes\n')
+        if arfima_p > 0:
+            tmp.write('AR_p  {0:d}\n'.format(arfima_p))
+        if arfima_q > 0:
+            tmp.write('MA_q  {0:d}\n'.format(arfima_q))
+        tmpname = tmp.name
+        tmp.close()
+
+        control = Control(tmpname)
+    finally:
+        os.unlink(tmpname)
 
     try:
         verbose = control.params['Verbose']
     except:
         verbose = True
 
-    if verbose==True:
-        print("\n***************************************")
-        print("    predict error, version 3.0.")
-        print("***************************************")
+    if verbose:
+        print('\n***************************************')
+        print('    predicttrenderror, version 3.0.')
+        print('***************************************')
 
-    #--- Get Classes
-    white = White()
-    powerlaw = Powerlaw()
-    ggm = GGM()
+    #--- Instantiate noise model objects
+    white        = White()
+    powerlaw     = Powerlaw()
+    ggm          = GGM()
     varyingannual = VaryingAnnual()
-    ar1 = AR1()
+    ar1          = AR1()
+    arfima_obj   = None
+    if arfima_p > 0 or arfima_q > 0:
+        # 'ARFIMA' estimates d; 'ARMA' fixes d=0
+        arfima_obj = ARFIMA(d_fixed=math.nan if 'ARFIMA' in noisemodels else 0.0)
+
     ammargrag = AmmarGrag()
 
-    #--- Driving noise
+    #--- Driving noise (scales the covariance)
     try:
         driving_noise = results['driving_noise']
-    except:
-        print('Could not find driving_noise')
+    except KeyError:
+        print('Could not find driving_noise in {0:s}'.format(fname))
         sys.exit()
 
-    #--- Create empty autocovariance array
+    #--- A noise model never has more than 4 scalar parameters
+    param = [0.0] * 4
+
+    #--- Build the normalised autocovariance vector t = Σ_k fraction_k * t_k
     t = np.zeros(m)
-    if seasonal==True:
-        H = np.ones((m,4))
-    else:
-        H = np.ones((m,2))
-    F = np.zeros((m,0))
-    x = np.zeros(m)
-
-    #--- A noise model never has more than 2 parameters, to be safe -> 4
-    param = [0.0]*4
-
-    #--- extract parameter values
     for noisemodel in noisemodels.keys():
-        if noisemodel=='White':
-            fraction = noisemodels['White']['fraction']
-            t_part,k_new = white.create_t(m,0,param)
-        elif noisemodel=='Powerlaw':
-            param[0] = noisemodels['Powerlaw']['kappa']
-            fraction = noisemodels['Powerlaw']['fraction']
-            t_part,k_new = powerlaw.create_t(m,0,param)
-        elif noisemodel=='FlickerGGM' or noisemodel=='RandomWalkGGM' or \
-                                                            noisemodel=='GGM':
-            param[0] = noisemodels['GGM']['kappa']
-            param[1] = noisemodels['GGM']['1-phi']
-            fraction = noisemodels['GGM']['fraction']
-            t_part,k_new = ggm.create_t(m,0,param)
-        elif noisemodel=='VaryingAnnual':
-            param[0] = noisemodels['VaryingAnnual']['phi']
-            fraction = noisemodels['VaryingAnnual']['fraction']
-            t_part,k_new = varyingannual.create_t(m,0,param)
-        elif 'AR1' in noisemodels:
-            param[0] = noisemodels['AR1']['phi']
-            fraction = noisemodels['AR1']['fraction']
-            t_part,k_new = ar1.create_t(m,0,param)
+        nm_data = noisemodels[noisemodel]
+
+        if noisemodel == 'White':
+            fraction = nm_data['fraction']
+            t_part, _ = white.create_t(m, 0, param)
+
+        elif noisemodel == 'Powerlaw':
+            param[0] = nm_data['kappa']
+            fraction  = nm_data['fraction']
+            t_part, _ = powerlaw.create_t(m, 0, param)
+
+        elif noisemodel in ('GGM', 'FlickerGGM', 'RandomWalkGGM'):
+            param[0]  = nm_data['kappa']
+            param[1]  = nm_data['1-phi']
+            fraction  = nm_data['fraction']
+            t_part, _ = ggm.create_t(m, 0, param)
+
+        elif noisemodel == 'VaryingAnnual':
+            param[0]  = nm_data['phi']
+            fraction  = nm_data['fraction']
+            t_part, _ = varyingannual.create_t(m, 0, param)
+
+        elif noisemodel == 'AR1':
+            param[0]  = nm_data['phi']
+            fraction  = nm_data['fraction']
+            t_part, _ = ar1.create_t(m, 0, param)
+
+        elif noisemodel in ('ARFIMA', 'ARMA'):
+            n_params = arfima_p + arfima_q + (1 if noisemodel == 'ARFIMA' else 0)
+            p_arfima = [0.0] * (n_params + 1)
+            for i in range(arfima_p):
+                p_arfima[i] = nm_data.get('AR{0:d}'.format(i + 1), 0.0)
+            for i in range(arfima_q):
+                p_arfima[arfima_p + i] = nm_data.get('MA{0:d}'.format(i + 1), 0.0)
+            if noisemodel == 'ARFIMA':
+                p_arfima[arfima_p + arfima_q] = nm_data['d']
+            fraction  = nm_data['fraction']
+            t_part, _ = arfima_obj.create_t(m, 0, p_arfima)
+
         else:
             print('Unknown noise model: {0:s}'.format(noisemodel))
             sys.exit()
 
         t += fraction * t_part
-       
-    #--- Multiply with driving noise
-    t *= pow(driving_noise,2.0)
 
-    #--- Measurement uncertainty based on noise model
-    print('\nIf you want to put error bar on each measurement:')
-    print('sigma = {0:.2f} {1:s}^2'.format(math.sqrt(t[0]),physical_unit))
+    #--- Scale by driving noise squared
+    t *= driving_noise ** 2
 
+    #--- Report per-epoch measurement noise
+    print('\nSingle-epoch noise (1-sigma): {0:.2f} {1:s}'.format(
+          math.sqrt(t[0]), physical_unit))
+
+    #--- Design matrix: bias (col 0) + trend (col 1) + optional annual (cols 2-3)
+    if seasonal:
+        H = np.ones((m, 4))
+    else:
+        H = np.ones((m, 2))
+    F = np.zeros((m, 0))
+    x = np.zeros(m)
+
+    #--- Advance to t0 filling in H but not yet computing
     tt = 0.0
     k  = 0
-    while tt<t0:
-        if seasonal==True:
-            H[k,2] = math.cos(2.0*math.pi/365.25 * tt)
-            H[k,3] = math.sin(2.0*math.pi/365.25 * tt)
+    while tt < t0:
+        if seasonal:
+            H[k, 2] = math.cos(2.0 * math.pi / 365.25 * tt)
+            H[k, 3] = math.sin(2.0 * math.pi / 365.25 * tt)
         tt += dt
-        k += 1
+        k  += 1
 
-    epochs = []
-    trend_sigma = []
-    while tt<t1:
-        H[0:k,1] = np.linspace(-tt/2,tt/2,k)
-        if seasonal==True:
-            H[k,2] = math.cos(2.0*math.pi/365.25 * tt)
-            H[k,3] = math.sin(2.0*math.pi/365.25 * tt)
+    #--- Sweep from t0 to t1, computing trend sigma at each step
+    epochs       = []
+    trend_sigma  = []
+    while tt < t1:
+        H[0:k, 1] = np.linspace(-tt / 2, tt / 2, k)
+        if seasonal:
+            H[k, 2] = math.cos(2.0 * math.pi / 365.25 * tt)
+            H[k, 3] = math.sin(2.0 * math.pi / 365.25 * tt)
 
-        [theta,C_theta,ln_det_C,sigma_eta] = \
-            ammargrag.compute_leastsquares(t,H[0:k,:],x[0:k],F[0:k,:],False) 
+        [theta, C_theta, ln_det_C, sigma_eta] = \
+            ammargrag.compute_leastsquares(t[:k], H[0:k, :], x[0:k], F[0:k, :], False)
 
-        if time_unit=='days':
-            epochs.append(tt/365.25)
-            trend_sigma.append(math.sqrt(C_theta[1,1]) * 365.25)
-        elif time_unit=='seconds':
-            epochs.append(tt/3600.0)
-            trend_sigma.append(math.sqrt(C_theta[1,1]) * 3600.0)
+        if time_unit == 'days':
+            epochs.append(tt / 365.25)
+            trend_sigma.append(math.sqrt(C_theta[1, 1]) * 365.25)
+        elif time_unit == 'seconds':
+            epochs.append(tt / 3600.0)
+            trend_sigma.append(math.sqrt(C_theta[1, 1]) * 3600.0)
         else:
             print('Unknown time unit: {0:s}'.format(time_unit))
             sys.exit()
 
-        #--- prepare next epoch
         tt += dt
-        k += 1
+        k  += 1
 
- 
-    if graph==True:
+    #--- Save to file
+    outfile = 'trend_sigma.out'
+    with open(outfile, 'w') as fp:
+        fp.write('# predicted trend uncertainty\n')
+        if time_unit == 'days':
+            fp.write('# col 1: observation span [yr]\n')
+            fp.write('# col 2: trend uncertainty [{0:s}/yr]\n'.format(physical_unit))
+        else:
+            fp.write('# col 1: observation span [h]\n')
+            fp.write('# col 2: trend uncertainty [{0:s}/h]\n'.format(physical_unit))
+        fp.write('#--------------------------------------------\n')
+        for e, s in zip(epochs, trend_sigma):
+            fp.write('{0:e}  {1:e}\n'.format(e, s))
+    print('--> {0:s}'.format(outfile))
+
+    #--- Plot
+    if graph or save_eps or save_png:
         fig = plt.figure(figsize=(5, 4), dpi=150)
-        plt.plot(epochs,trend_sigma, label='trend sigma')
-        if time_unit=='days':
+        plt.plot(epochs, trend_sigma, label='trend sigma')
+        if time_unit == 'days':
             plt.xlabel('observation span [yr]')
             plt.ylabel('trend sigma [{0:s}/yr]'.format(physical_unit))
         else:
             plt.xlabel('observation span [h]')
             plt.ylabel('trend sigma [{0:s}/h]'.format(physical_unit))
         plt.legend()
-        plt.show()
 
+        if graph:
+            plt.show()
 
-    #--- Write uncertainty to file
-    fp = open('trend_sigma.out','w')
-    fp.write('# predicted trend uncertainty\n')
-    if time_unit=='days':
-        fp.write('#\n#\n 1 time in years')
-        fp.write('#\n 2 trend uncertainty in {0:s}/yr'.format(physical_unit))
-    else:
-        fp.write('#\n#\n 1 time in hours')
-        fp.write('#\n 2 trend uncertainty in {0:s}/hr'.format(physical_unit))
-    fp.write('#--------------------------------------------\n')
-    for i in range(0,len(epochs)):
-        fp.write('{0:e}  {1:e}\n'.format(epochs[i],trend_sigma[i]))
-    fp.close()
-
+        if save_eps or save_png:
+            if not os.path.exists('data_figures'):
+                os.mkdir('data_figures')
+            if save_eps:
+                fig.savefig('data_figures/trend_sigma.eps', format='eps', bbox_inches='tight')
+            if save_png:
+                fig.savefig('data_figures/trend_sigma.png', format='png',
+                            dpi=300, bbox_inches='tight', transparent=True)
