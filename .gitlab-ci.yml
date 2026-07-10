@@ -47,3 +47,27 @@ build_windows_wheels:
     paths:
       - wheelhouse/*.whl
     expire_in: 1 week
+
+build_linux_wheels:
+  stage: build
+  image: quay.io/pypa/manylinux_2_28_x86_64
+  tags:
+    - saas-linux-medium-amd64
+  rules:
+    - if: $CI_COMMIT_TAG
+    - when: manual
+  before_script:
+    - dnf install -y fftw-devel
+  script:
+    - |
+      mkdir -p wheelhouse
+      for PYBIN in /opt/python/cp31{0,1,2,3}-*/bin; do
+        ${PYBIN}/pip install --quiet cython numpy setuptools wheel
+        ${PYBIN}/python setup.py bdist_wheel
+        auditwheel repair dist/*.whl -w wheelhouse/
+        rm -f dist/*.whl
+      done
+  artifacts:
+    paths:
+      - wheelhouse/*.whl
+    expire_in: 1 week
