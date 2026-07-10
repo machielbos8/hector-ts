@@ -369,9 +369,23 @@ def main():
 
     print(x_clean[0:5])
 
+    #--- Welch parameters from control file
+    try:
+        nsegments = int(control.params['NumberOfSegments'])
+    except:
+        nsegments = 4
+    try:
+        fraction = float(control.params['Fraction'])
+    except:
+        fraction = 0.1
+
+    nperseg = n // nsegments
+    noverlap = nperseg // 2
+    window = signal.windows.tukey(nperseg, alpha=2.0 * fraction)
+
     #--- Compute PSD with Welch method
-    f, Pxx_den = signal.welch(x_clean, fs, window='hann', return_onesided=True,\
-					             noverlap=n//8,nperseg=n//4)
+    f, Pxx_den = signal.welch(x_clean, fs, window=window, return_onesided=True,
+                              noverlap=noverlap, nperseg=nperseg)
 
     #--- Add PSD of noise models?
     if plot_noisemodels==True:
