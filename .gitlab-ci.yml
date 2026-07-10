@@ -1,3 +1,10 @@
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG          # tag push → build release wheels automatically
+    - if: $CI_PIPELINE_SOURCE == "web"   # "Run pipeline" button in GitLab UI
+    - if: $CI_PIPELINE_SOURCE == "api"   # triggered via GitLab API
+    - when: never                         # all other pushes → no pipeline
+
 stages:
   - build
 
