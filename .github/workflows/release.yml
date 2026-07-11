@@ -19,7 +19,7 @@ jobs:
       - name: Build wheels
         run: |
           mkdir -p wheelhouse
-          for PYBIN in /opt/python/cp31{0,1,2,3}-*/bin; do
+          for PYBIN in /opt/python/cp31{0,1,2,3,4}-*/bin; do
             ${PYBIN}/pip install --quiet cython numpy setuptools wheel
             ${PYBIN}/python setup.py bdist_wheel
             auditwheel repair dist/*.whl -w wheelhouse/
@@ -27,8 +27,8 @@ jobs:
           done
       - name: Build sdist
         run: |
-          /opt/python/cp312-cp312/bin/pip install --quiet build
-          /opt/python/cp312-cp312/bin/python -m build --sdist --outdir wheelhouse/
+          /opt/python/cp313-cp313/bin/pip install --quiet build
+          /opt/python/cp313-cp313/bin/python -m build --sdist --outdir wheelhouse/
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-linux
@@ -43,7 +43,7 @@ jobs:
         run: brew install fftw
       - name: Build wheels
         env:
-          CIBW_BUILD: "cp310-macosx_arm64 cp311-macosx_arm64 cp312-macosx_arm64 cp313-macosx_arm64"
+          CIBW_BUILD: "cp310-macosx_arm64 cp311-macosx_arm64 cp312-macosx_arm64 cp313-macosx_arm64 cp314-macosx_arm64"
           CIBW_ARCHS_MACOS: "arm64"
           CIBW_ENVIRONMENT_MACOS: "FFTW_DIR=/opt/homebrew MACOSX_DEPLOYMENT_TARGET=14.0"
         run: pipx run cibuildwheel --platform macos --output-dir wheelhouse
@@ -83,7 +83,7 @@ jobs:
           $env:FFTW_ROOT    = Join-Path $env:VCPKG_ROOT "installed\x64-windows"
           $env:FFTW_BIN_DIR = "$($env:FFTW_ROOT)\bin"
           $env:PATH         = "$($env:FFTW_BIN_DIR);$($env:PATH)"
-          $env:CIBW_BUILD   = "cp310-win_amd64 cp311-win_amd64 cp312-win_amd64 cp313-win_amd64"
+          $env:CIBW_BUILD   = "cp310-win_amd64 cp311-win_amd64 cp312-win_amd64 cp313-win_amd64 cp314-win_amd64"
           $env:CIBW_ARCHS_WINDOWS = "AMD64"
           $env:CIBW_ENVIRONMENT_WINDOWS = "FFTW_DIR='$($env:FFTW_ROOT)'"
           python -m cibuildwheel --platform windows --output-dir wheelhouse
