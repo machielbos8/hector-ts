@@ -96,16 +96,18 @@ jobs:
     permissions:
       id-token: write   # required for PyPI trusted publisher
     steps:
-      - name: Download all wheels
+      - uses: actions/checkout@v4
+      - name: Install FFTW3 (needed by setup.py for sdist)
+        run: sudo apt-get install -y libfftw3-dev
+      - name: Build sdist
+        run: |
+          pip install build
+          python -m build --sdist --outdir dist/
+      - name: Download wheels
         uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
           merge-multiple: true
           path: dist/
-      - name: Build sdist
-        uses: actions/checkout@v4
-      - run: |
-          pip install build
-          python -m build --sdist --outdir dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
