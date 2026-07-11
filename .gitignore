@@ -21,12 +21,15 @@ venv/
 .env/
 
 # Generated example output (run these yourself)
-examples/*/fin_files/
-examples/*/pre_files/
-examples/*/stage_files/
-examples/*/raw_files/*.ncf
-examples/*/ngl_files/
-examples/*/pre_ngl_files/
+src/hector/examples/*/fin_files/
+src/hector/examples/*/pre_files/
+src/hector/examples/*/stage_files/
+src/hector/examples/*/raw_files/*.ncf
+src/hector/examples/*/ngl_files/
+src/hector/examples/*/pre_ngl_files/
+
+# Jupyter runtime
+.ipynb_checkpoints/
 
 # macOS
 .DS_Store
