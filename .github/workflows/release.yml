@@ -1,0 +1,113 @@
+name: Build and publish wheels
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:   # allow manual trigger from the GitHub UI
+
+jobs:
+
+  build_linux:
+    name: Linux wheels
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux_2_28_x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFTW3
+        run: dnf install -y fftw-devel
+      - name: Build wheels
+        run: |
+          mkdir -p wheelhouse
+          for PYBIN in /opt/python/cp31{0,1,2,3}-*/bin; do
+            ${PYBIN}/pip install --quiet cython numpy setuptools wheel
+            ${PYBIN}/python setup.py bdist_wheel
+            auditwheel repair dist/*.whl -w wheelhouse/
+            rm -f dist/*.whl
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux
+          path: wheelhouse/*.whl
+
+  build_macos:
+    name: macOS arm64 wheels
+    runs-on: macos-14   # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFTW3
+        run: brew install fftw
+      - name: Install cibuildwheel
+        run: pip3 install cibuildwheel
+      - name: Build wheels
+        env:
+          CIBW_BUILD: "cp310-macosx_arm64 cp311-macosx_arm64 cp312-macosx_arm64 cp313-macosx_arm64"
+          CIBW_ARCHS_MACOS: "arm64"
+          CIBW_ENVIRONMENT_MACOS: "FFTW_DIR=/opt/homebrew"
+        run: python3 -m cibuildwheel --platform macos --output-dir wheelhouse
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos
+          path: wheelhouse/*.whl
+
+  build_windows:
+    name: Windows wheels
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg
+            vcpkg_cache
+          key: vcpkg-windows-${{ github.ref_name }}
+          restore-keys: vcpkg-windows-
+      - name: Install FFTW3 via vcpkg
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = Join-Path $env:GITHUB_WORKSPACE "vcpkg"
+          if (!(Test-Path $env:VCPKG_ROOT)) {
+            git clone https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+          }
+          & (Join-Path $env:VCPKG_ROOT "bootstrap-vcpkg.bat")
+          $env:VCPKG_BINARY_SOURCES = "clear;files,$env:GITHUB_WORKSPACE\vcpkg_cache,readwrite"
+          & (Join-Path $env:VCPKG_ROOT "vcpkg.exe") install fftw3:x64-windows
+      - name: Build wheels
+        shell: pwsh
+        run: |
+          pip install cibuildwheel delvewheel
+          $env:VCPKG_ROOT   = Join-Path $env:GITHUB_WORKSPACE "vcpkg"
+          $env:FFTW_ROOT    = Join-Path $env:VCPKG_ROOT "installed\x64-windows"
+          $env:FFTW_BIN_DIR = "$($env:FFTW_ROOT)\bin"
+          $env:PATH         = "$($env:FFTW_BIN_DIR);$($env:PATH)"
+          $env:CIBW_BUILD   = "cp310-win_amd64 cp311-win_amd64 cp312-win_amd64 cp313-win_amd64"
+          $env:CIBW_ARCHS_WINDOWS = "AMD64"
+          $env:CIBW_ENVIRONMENT_WINDOWS = "FFTW_DIR='$($env:FFTW_ROOT)'"
+          python -m cibuildwheel --platform windows --output-dir wheelhouse
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows
+          path: wheelhouse/*.whl
+
+  publish:
+    name: Publish to PyPI
+    needs: [build_linux, build_macos, build_windows]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write   # required for PyPI trusted publisher
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist/
+      - name: Build sdist
+        uses: actions/checkout@v4
+      - run: |
+          pip install build
+          python -m build --sdist --outdir dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
