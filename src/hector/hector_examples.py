@@ -21,3 +21,4 @@ def main():
     print("  ex4  Trend estimation with known offsets")
     print("  ex5  Offset detection on a real GNSS station")
     print("  ex6  Multi-station offset detection from NGL tenv files")
+    print("  ex7  Toeplitz factorisation: Levinson vs Generalised Schur (Jupyter)")

@@ -114,6 +114,7 @@ hector-examples my_examples_dir  # or choose a name
 | ex4 | Trend estimation with known offsets |
 | ex5 | Offset detection on a real GNSS station |
 | ex6 | Multi-station offset detection from NGL tenv files |
+| ex7 | Toeplitz factorisation: Levinson vs. Generalised Schur (Jupyter notebook) |
 
 ## Reference
 

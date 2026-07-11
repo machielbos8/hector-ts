@@ -1,6 +1,6 @@
 # Examples
 
-Six worked examples illustrating the Hector v3.0 workflow.
+Seven worked examples illustrating the Hector v3.0 workflow.
 
 | Example | Topic |
 |:--- |:--- |
@@ -10,5 +10,6 @@ Six worked examples illustrating the Hector v3.0 workflow.
 | [ex4](ex4/README.md) | Trend estimation with known offsets |
 | [ex5](ex5/README.md) | Offset detection on a real GNSS station |
 | [ex6](ex6/README.md) | Multi-station offset detection from NGL tenv files |
+| ex7 | Toeplitz factorisation: Levinson vs. Generalised Schur (Jupyter notebook) |
 
 Run each example from its own directory with Hector installed and active.
