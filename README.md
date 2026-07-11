@@ -110,11 +110,12 @@ hector-examples my_examples_dir  # or choose a name
 |:--- |:--- |
 | ex1 | Synthetic GNSS: removeoutliers → estimatetrend → PSD |
 | ex2 | Monthly sea-level data from Cascais tide gauge |
-| ex3 | Multi-station GNSS batch processing |
-| ex4 | Trend estimation with known offsets |
+| ex3 | Synthetic coloured noise with simulatenoise |
+| ex4 | Post-seismic relaxation |
 | ex5 | Offset detection on a real GNSS station |
 | ex6 | Multi-station offset detection from NGL tenv files |
-| ex7 | Toeplitz factorisation: Levinson vs. Generalised Schur (Jupyter notebook) |
+| ex7 | Piecewise linear (multi-trend) estimation |
+| ex8 | Toeplitz factorisation: Levinson vs. Generalised Schur (Jupyter notebook) |
 
 ## Reference
 
