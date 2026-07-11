@@ -157,7 +157,12 @@ setuptools.setup(
     ],
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
-    package_data={"hector": ["*.pyx", "*.pxd"]},
+    package_data={"hector": [
+        "*.pyx", "*.pxd",
+        "examples/*",
+        "examples/*/*",
+        "examples/*/*/*",
+    ]},
     python_requires=">=3.6",
     install_requires=[
         'pandas',
@@ -202,6 +207,7 @@ setuptools.setup(
             'ncfgen = hector.ncfgen:main',
             'ncfdump = hector.ncfdump:main',
             'plot_ts = hector.plot_ts:main',
+            'hector-examples = hector.hector_examples:main',
         ],
     }
 )

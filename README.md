@@ -98,16 +98,22 @@ Run `estimate_all_trends` in a directory that follows this layout to process all
 
 ## Examples
 
-Six worked examples are included in the `examples/` directory:
+Six worked examples are bundled with the package. Copy them to your working
+directory with:
+
+```bash
+hector-examples                  # creates ./hector-examples/
+hector-examples my_examples_dir  # or choose a name
+```
 
 | Example | Topic |
 |:--- |:--- |
-| [ex1](examples/ex1/README.md) | Synthetic GNSS: removeoutliers → estimatetrend → PSD |
-| [ex2](examples/ex2/README.md) | Monthly sea-level data from Cascais tide gauge |
-| [ex3](examples/ex3/README.md) | Multi-station GNSS batch processing |
-| [ex4](examples/ex4/README.md) | Trend estimation with known offsets |
-| [ex5](examples/ex5/README.md) | Offset detection on a real GNSS station |
-| [ex6](examples/ex6/README.md) | Multi-station offset detection from NGL tenv files |
+| ex1 | Synthetic GNSS: removeoutliers → estimatetrend → PSD |
+| ex2 | Monthly sea-level data from Cascais tide gauge |
+| ex3 | Multi-station GNSS batch processing |
+| ex4 | Trend estimation with known offsets |
+| ex5 | Offset detection on a real GNSS station |
+| ex6 | Multi-station offset detection from NGL tenv files |
 
 ## Reference
 

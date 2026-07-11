@@ -2,3 +2,4 @@ include src/hector/*.pyx
 include src/hector/*.pxd
 include LICENSE
 include README.md
+recursive-include src/hector/examples *
