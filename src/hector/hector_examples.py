@@ -14,6 +14,9 @@ def main():
     if not src.is_dir():
         sys.exit("Examples directory not found in the installed package.")
     shutil.copytree(src, dest)
+    manual_src = Path(__file__).parent / "docs" / "hector_manual_v3.0.pdf"
+    if manual_src.exists():
+        shutil.copy(manual_src, dest / "hector_manual_v3.0.pdf")
     print(f"Examples copied to: {dest.resolve()}")
     print("  ex1  Synthetic GNSS: removeoutliers → estimatetrend → PSD")
     print("  ex2  Monthly sea-level data from Cascais tide gauge")
