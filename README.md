@@ -98,7 +98,7 @@ Run `estimate_all_trends` in a directory that follows this layout to process all
 
 ## Examples
 
-Six worked examples are bundled with the package. Copy them to your working
+Eight worked examples are bundled with the package. Copy them to your working
 directory with:
 
 ```bash
