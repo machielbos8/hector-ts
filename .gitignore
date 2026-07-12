@@ -25,6 +25,9 @@ src/hector/examples/*/fin_files/
 src/hector/examples/*/pre_files/
 src/hector/examples/*/stage_files/
 src/hector/examples/*/raw_files/*.ncf
+# ex6 pre-computed pipeline outputs are tracked (reviewers need them)
+!src/hector/examples/ex6/stage_files/
+!src/hector/examples/ex6/raw_files/*.ncf
 src/hector/examples/*/ngl_files/
 src/hector/examples/*/pre_ngl_files/
 
