@@ -7,12 +7,13 @@ station 52 from the Permanent Service for Mean Sea Level (PSMSL,
 ### Files
 
 ```
-52.rlrdata          monthly RLR data downloaded from PSMSL
-cascais.mom         converted mom-format file (generated in Step 1)
-cascais_out.mom     estimatetrend output (generated in Step 2)
-hadslp2_cascais.mom monthly surface pressure (HadSLP2, Hadley Centre)
-estimatetrend.ctl   control file for estimatetrend
-estimatespectrum.ctl control file for estimatespectrum
+52.rlrdata                      monthly RLR data downloaded from PSMSL
+cascais.mom                     converted mom-format file (generated in Step 1)
+cascais_out.mom                 estimatetrend output (generated in Step 2)
+hadslp2_cascais.mom             monthly surface pressure (HadSLP2, Hadley Centre)
+estimatetrend.ctl               control file for estimatetrend (AR1, no covariate)
+estimatetrend_multivariate.ctl  control file with HadSLP2 regression (Step 4)
+estimatespectrum.ctl            control file for estimatespectrum
 ```
 
 ### Step 1 — Convert from PSMSL RLR format
@@ -52,13 +53,12 @@ This reads `cascais_out.mom` and writes the PSD figure to `psd_figures/cascais_o
 ### Step 4 — Multivariate analysis (optional)
 
 To include the HadSLP2 surface-pressure series as a regression covariate,
-add these lines to `estimatetrend.ctl`:
+run `estimatetrend` with the provided multivariate control file:
 
 ```
-estimatemultivariate       yes
-MultiVariateFile           hadslp2_cascais.mom
+estimatetrend -i estimatetrend_multivariate.ctl
 ```
 
-With the GGM noise model the regression coefficient for surface pressure
+With the AR(1) noise model the regression coefficient for surface pressure
 comes out at approximately −11.97 ± 0.45 mm/mbar, close to the standard
 inverted barometer value.

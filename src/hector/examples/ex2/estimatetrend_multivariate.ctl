@@ -5,6 +5,8 @@ DegreePolynomial    1
 interpolate         no
 periodicsignals     365.25 182.625
 estimateoffsets     no
+estimatemultivariate yes
+MultiVariateFile    hadslp2_cascais.mom
 NoiseModels         ARMA
 PhysicalUnit        mm
 AR_p                1
