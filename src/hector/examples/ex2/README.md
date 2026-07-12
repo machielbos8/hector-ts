@@ -60,5 +60,5 @@ MultiVariateFile           hadslp2_cascais.mom
 ```
 
 With the GGM noise model the regression coefficient for surface pressure
-comes out at approximately −12.2 mm/mbar, close to the standard inverted
-barometer value.
+comes out at approximately −11.97 ± 0.45 mm/mbar, close to the standard
+inverted barometer value.

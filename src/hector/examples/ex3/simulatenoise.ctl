@@ -1,4 +1,4 @@
-SimulationDir           ./
+SimulationDir           ./obs_files
 SimulationLabel         test_base
 NumberOfSimulations     10
 NumberOfPoints          5000

@@ -10,6 +10,6 @@ periodicsignals       365.25 182.625
 estimateoffsets       yes
 NoiseModels          GGM White
 GGM_1mphi           6.9e-06
-useRMLE               no
+useRMLE               yes
 PlotName              ZIMM_u
 Verbose               no

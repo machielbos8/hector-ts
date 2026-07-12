@@ -1,5 +1,5 @@
-DataFile            TEST_filtered.mom
-DataDirectory       ./raw_files
+DataFile            TEST.mom
+DataDirectory       ./stage_files
 OutputFile          ./obs_files/TEST.mom
 PhysicalUnit        mm
 ScaleFactor         1.0

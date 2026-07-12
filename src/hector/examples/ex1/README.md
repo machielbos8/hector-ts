@@ -54,7 +54,7 @@ four offsets using the GGM White noise model and RMLE. Writes
 
 Expected output (v3.0):
 ```
-trend: 19.841 +/- 2.994 mm/yr
+trend: 16.753 +/- 1.044 mm/yr
 ```
 
 ### Step 3 - Power spectral density
@@ -65,3 +65,18 @@ estimatespectrum -model -png
 
 Reads `mom_files/TEST.mom`, computes the periodogram of the residuals,
 overlays the fitted noise model PSD, and saves `psd_figures/TEST.png`.
+
+### Jupyter notebook
+
+A self-contained notebook (`example1_jupyter.ipynb`) covering the complete
+workflow — outlier removal, trend estimation, time-series plot, residuals, and
+PSD — is provided in this directory.  Run it with:
+
+```bash
+pip install jupyter   # if not already installed
+jupyter notebook
+```
+
+Then open `example1_jupyter.ipynb`.  Note: `Control`, `Observations`,
+`DesignMatrix`, and `Covariance` are singleton classes; call
+`SingletonMeta.clear_all()` before each fresh analysis in the same kernel.

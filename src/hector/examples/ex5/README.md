@@ -1,23 +1,28 @@
-# Example 5 — Offset detection on a real GNSS station
+# Example 5 — Offset detection on a synthetic GNSS station
 
-Demonstrates the full Hector v3.0 workflow for a single GNSS station:
-outlier removal, automated offset detection, trend estimation, and
-power spectral density analysis.
+Demonstrates the full Hector v3.0 workflow for detecting unknown offset epochs
+in a single GNSS station time series: spike removal, automated offset detection,
+trend estimation, and power spectral density analysis.
 
 ## Data
 
 `raw_files/TEST.mom` — synthetic daily GNSS vertical component, ~3 years,
-with instrument-change offsets added at known epochs.
+with instrument-change offsets added at known epochs (header lines removed so
+that offset epochs are treated as unknown).
 
-## Step 1 — Remove outliers
+## Step 1 — Remove spike outliers
 
 ```bash
 removeoutliers
 ```
 
-Reads `raw_files/TEST.mom`, fits a polynomial + seasonal model via OLS,
-flags outliers with IQ-factor 2, and writes the cleaned series to
-`raw_files/TEST_filtered.mom`.
+Reads `raw_files/TEST.mom` and applies the SpikeDetector (`Spike_factor 3`):
+an epoch is flagged only when both adjacent first differences exceed
+3 × MAD of all differences *and* have opposite sign.  This criterion is immune
+to unmodelled offsets — a genuine step produces one large first difference
+without a sign reversal and is never flagged.  Output: `stage_files/TEST.mom`.
+
+Expected: ~13 spike epochs removed.
 
 ## Step 2 — Detect offsets
 
@@ -25,14 +30,26 @@ flags outliers with IQ-factor 2, and writes the cleaned series to
 findoffsets
 ```
 
-Reads `raw_files/TEST_filtered.mom` and runs the forward GLR search to
-detect offset epochs.  Each iteration adds the epoch that produces the
-largest log-likelihood improvement above a threshold, then re-estimates
-the full trajectory model with that offset included.  Results are written
-to `obs_files/TEST.mom` (with offset epochs embedded in the header) and
+Reads `stage_files/TEST.mom` and runs the forward GLR search to detect offset
+epochs.  Each iteration adds the epoch that produces the largest
+log-likelihood improvement above the threshold, then re-estimates the full
+trajectory model with that offset included.  Results are written to
+`obs_files/TEST.mom` (with offset epochs embedded in the header) and
 `findoffsets.json`.
 
-Expected: 2–4 offsets detected.
+Expected output:
+```
+0: best offset at  50784.00 (i=700) : dln=  160.744
+1: best offset at  51034.00 (i=950) : dln=  172.049
+2: best offset at  50284.00 (i=200) : dln=  104.895
+3: best offset at  50335.00 (i=251) : dln=  133.194
+4: best offset at  50807.00 (i=723) : dln=    8.799
+---
+Found 4 offset(s).
+```
+
+The fifth candidate (MJD 50807, Δln L = 8.8) falls below the default
+threshold of 20 and is rejected.
 
 ## Step 3 — Estimate the trend
 
@@ -59,12 +76,12 @@ periodogram.  Output is written to `estimatespectrum.out` and
 
 | File | Purpose |
 |:--- |:--- |
-| `removeoutliers.ctl` | Outlier removal parameters |
+| `removeoutliers.ctl` | Spike outlier removal (Spike_factor 3) |
 | `findoffsets.ctl` | Offset search: noise model, threshold, max offsets |
 | `estimatetrend.ctl` | Trajectory model, noise model, RMLE settings |
 | `estimatespectrum.ctl` | PSD estimation settings |
 
 ## Pre-computed output
 
-`estimatetrend.json` and `findoffsets.json` contain the expected output
-from Steps 2 and 3 for comparison.
+`stage_files/TEST.mom`, `obs_files/TEST.mom`, `estimatetrend.json`, and
+`findoffsets.json` are pre-computed so you can start at any step.
