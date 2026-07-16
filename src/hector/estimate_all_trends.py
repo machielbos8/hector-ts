@@ -82,7 +82,7 @@ def create_removeoutliers_ctl_file(station):
 
 def create_estimatetrend_ctl_file(station, noisemodels, useRMLE, noseasonal, phi):
     """Create estimatetrend.ctl for a mom station."""
-    directory = Path('fin_files')
+    directory = Path('mom_files')
     fname = str(directory / '{0:s}.mom'.format(station))
     with open("estimatetrend.ctl", "w") as fp:
         fp.write("DataFile            {0:s}.mom\n".format(station))
@@ -105,7 +105,7 @@ def create_estimatespectrum_ctl_file(station):
     """Create estimatespectrum.ctl for a mom station."""
     with open("estimatespectrum.ctl", "w") as fp:
         fp.write("DataFile              {0:s}.mom\n".format(station))
-        fp.write("DataDirectory         fin_files\n")
+        fp.write("DataDirectory         mom_files\n")
         fp.write("interpolate           no\n")
         fp.write("ScaleFactor           1.0\n")
         fp.write("PhysicalUnit          mm\n")
@@ -245,8 +245,8 @@ def main():
     if mom_stations:
         if not os.path.exists('pre_files'):
             os.makedirs('pre_files')
-        if not os.path.exists('fin_files'):
-            os.makedirs('fin_files')
+        if not os.path.exists('mom_files'):
+            os.makedirs('mom_files')
 
     output = {}
 

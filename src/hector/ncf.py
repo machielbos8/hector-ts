@@ -145,6 +145,23 @@ class NCF:
                 setattr(ds, k, val)
 
 
+    def _read_time_as_mjd(self, time_var):
+        """Read a netCDF4 time variable and return values as MJD (float64).
+
+        If the variable's units attribute already matches MJD_UNITS the values
+        are returned as-is.  Otherwise the CF date-arithmetic round-trip
+        (num2date → date2num with MJD_UNITS) handles any standard CF units
+        such as "seconds since 2026-07-10 20:00:00".
+        """
+        raw      = time_var[:].data.astype(np.float64)
+        units    = getattr(time_var, 'units', self.MJD_UNITS)
+        calendar = getattr(time_var, 'calendar', 'proleptic_gregorian')
+        if units.strip() == self.MJD_UNITS:
+            return raw
+        dates = nc.num2date(raw, units, calendar)
+        return np.asarray(nc.date2num(dates, self.MJD_UNITS, calendar),
+                          dtype=np.float64)
+
     def read(self, fname):
         """Read a .ncf file.
 
@@ -166,7 +183,7 @@ class NCF:
         attrs       = {}
 
         with nc.Dataset(fname, 'r') as ds:
-            time_mjd = ds.variables['time'][:].data.astype(np.float64)
+            time_mjd = self._read_time_as_mjd(ds.variables['time'])
 
             for name, var in ds.variables.items():
                 if name == 'time':

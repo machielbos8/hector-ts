@@ -46,7 +46,9 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import argparse
+from datetime import datetime
 
 #===============================================================================
 # Helpers
@@ -54,9 +56,33 @@ import argparse
 
 MJD_J2000 = 51544.5   # MJD of 2000-01-01 12:00 UTC
 
+# MJD epoch expressed as a matplotlib date number (days since 0001-01-01).
+# Used to convert MJD → matplotlib's internal date float without any epoch
+# ambiguity: mpl_date = _MJD_EPOCH_MPLNUM + mjd.
+_MJD_EPOCH_MPLNUM = mdates.date2num(datetime(1858, 11, 17))
+
+
 def mjd_to_year(mjd):
     """Convert MJD (days) to decimal year (approximate, using 365.25 days/yr)."""
     return 2000.0 + (np.asarray(mjd) - MJD_J2000) / 365.25
+
+
+def mjd_to_mpldate(mjd):
+    """Convert MJD (days) to matplotlib date numbers for adaptive axis formatting."""
+    return _MJD_EPOCH_MPLNUM + np.asarray(mjd, dtype=float)
+
+
+def _looks_like_mjd(x):
+    """Heuristic: x values in [20000, 100000] are very likely MJD (1912–2132)."""
+    return x.size > 0 and 20000.0 < float(x.mean()) < 100000.0
+
+
+def _apply_date_axis(ax, fig):
+    """Set AutoDateLocator + ConciseDateFormatter on ax; auto-rotate labels."""
+    loc = mdates.AutoDateLocator()
+    ax.xaxis.set_major_locator(loc)
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+    fig.autofmt_xdate()
 
 
 def read_ncf(fname, cx, cy, cy2, cy3):
@@ -148,11 +174,11 @@ def main():
     print("**********************************")
 
     parser = argparse.ArgumentParser(
-        description='Plot a time series from a text or .ncf file',
+        description='Plot a time series from a text or .ncf/.nc file',
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('-i',   required=True,  dest='fname',
-                        help='input file (.mom / ASCII text, or .ncf)')
+                        help='input file (.mom / ASCII text, or .ncf / .nc)')
     parser.add_argument('-cx',  required=False, dest='cx', default=None,
                         help='x-axis: column number (text) or channel name (ncf, '
                              'default: time → decimal year)')
@@ -192,7 +218,7 @@ def main():
         print('File not found: {}'.format(fname))
         sys.exit(1)
 
-    is_ncf = fname.lower().endswith('.ncf')
+    is_ncf = fname.lower().endswith(('.ncf', '.nc'))
 
     # ------------------------------------------------------------------
     # Read data
@@ -207,10 +233,12 @@ def main():
                                                     cy2_name, cy3_name)
 
         if x_is_time:
-            x = mjd_to_year(x)
-            lx = args.lx or 'Year'
+            x = mjd_to_mpldate(x)
+            lx = args.lx or ''
+            use_date_axis = True
         else:
             lx = args.lx or cx_name
+            use_date_axis = False
 
         ly = args.ly or cy_name
 
@@ -245,11 +273,19 @@ def main():
             sys.exit(1)
 
         x, y, y2, y3 = read_text(fname, cx, cy, cy2, cy3)
-        lx = args.lx or ''
         ly = args.ly or ''
         y_label_default = 'col {}'.format(cy)
         cy2_label = 'col {}'.format(cy2) if cy2 is not None else None
         cy3_label = 'col {}'.format(cy3) if cy3 is not None else None
+
+        # Auto-detect MJD on the x-axis (no user override via -lx).
+        if _looks_like_mjd(x) and args.lx is None:
+            x = mjd_to_mpldate(x)
+            lx = ''
+            use_date_axis = True
+        else:
+            lx = args.lx or ''
+            use_date_axis = False
 
     # ------------------------------------------------------------------
     # Magnitude
@@ -282,6 +318,9 @@ def main():
     ax.set_ylabel(ly)
     if args.title:
         ax.set_title(args.title)
+
+    if use_date_axis:
+        _apply_date_axis(ax, fig)
 
     fig.tight_layout()
 

@@ -22,10 +22,53 @@ import sys
 import math
 import re
 import shutil
+import subprocess
 from hector.control import Control
 from hector.control import SingletonMeta
 from hector.ncf import NCF
 from pathlib import Path
+
+#==============================================================================
+# Memory availability helpers
+#==============================================================================
+
+_AVAIL_RAM_BYTES: int = -1  # -1 = not yet queried
+
+
+def _query_available_ram() -> int:
+    """Return estimated available physical RAM in bytes.
+
+    On macOS reads vm_stat; on Linux reads /proc/meminfo.
+    Returns 0 when the OS cannot be queried (preemptive check is skipped).
+    """
+    try:
+        if sys.platform == 'darwin':
+            out = subprocess.check_output(['vm_stat'], text=True, timeout=3)
+            m = re.search(r'page size of (\d+)', out)
+            page_size = int(m.group(1)) if m else 16384
+            pages = 0
+            for key in ('Pages free', 'Pages inactive'):
+                hit = re.search(key + r'[^0-9]+(\d+)', out)
+                if hit:
+                    pages += int(hit.group(1))
+            return pages * page_size
+        elif sys.platform.startswith('linux'):
+            with open('/proc/meminfo') as fh:
+                for line in fh:
+                    if line.startswith('MemAvailable:'):
+                        return int(line.split()[1]) * 1024
+    except Exception:
+        pass
+    return 0
+
+
+def _avail_ram() -> int:
+    """Return cached available RAM estimate (0 = unknown, skip preemptive check)."""
+    global _AVAIL_RAM_BYTES
+    if _AVAIL_RAM_BYTES < 0:
+        _AVAIL_RAM_BYTES = _query_available_ram()
+    return _AVAIL_RAM_BYTES
+
 
 #==============================================================================
 # Class definition
@@ -112,7 +155,7 @@ class Observations(metaclass=SingletonMeta):
         try:
             self.ts_format = control.params['TS_format']
         except:
-            if fname != 'None' and fname.lower().endswith('.ncf'):
+            if fname != 'None' and fname.lower().endswith(('.ncf', '.nc')):
                 self.ts_format = 'ncf'
             else:
                 self.ts_format = 'mom'
@@ -248,7 +291,11 @@ class Observations(metaclass=SingletonMeta):
                     if len(cols)<2 or len(cols)>3:
                         print('Found illegal row: {0:s}'.format(line))
                         sys.exit()
-                    
+                    # Adaptive tolerance: 1% of period keeps float64 rounding
+                    # errors out while still detecting single-sample gaps.
+                    # The fixed 1e-6 d tolerance equals 54% of the period for
+                    # 6 Hz data and causes false gap insertions.
+                    TINY = 0.01 * self.sampling_period
                     mjd = float(cols[0])
                     #--- Fill gaps with NaN's
                     if mjd_old>0.0:
@@ -409,8 +456,8 @@ class Observations(metaclass=SingletonMeta):
             print('--> {0:s}'.format(fname))
         
         #--- Write header
-        fp.write('# sampling period {0:f}\n'.format(self.sampling_period))
-                
+        fp.write('# sampling period {0:.12f}\n'.format(self.sampling_period))
+
         #--- Write header offsets
         for i in range(0,len(self.offsets)):
             fp.write('# offset {0:10.4f}\n'.format(self.offsets[i]))
@@ -429,12 +476,17 @@ class Observations(metaclass=SingletonMeta):
         for i in range(0,len(self.ssetanh)):
             [mjd,T] = self.sshtanh[i]
             fp.write('# tanh {0:10.4f} {1:5.1f}\n'.format(mjd,T))
- 
-        #--- Write time series
+
+        #--- Adaptive MJD format: enough decimal places to resolve one sample.
+        #    max(6, ceil(-log10(sp)) + 2) gives 6 for daily/hourly, 8 for
+        #    6 Hz ADC, 10 for 1 kHz.  Field width = 6 + ndp (1 space + 5
+        #    integer digits + dot + ndp decimals).
+        ndp  = max(6, math.ceil(-math.log10(self.sampling_period)) + 2)
+        mfmt = '{{0:{w}.{d}f}} {{1:13.6f}}'.format(w=6+ndp, d=ndp)
         for i in range(0,len(self.data.index)):
             if not math.isnan(self.data.iloc[i,0])==True:
-                fp.write('{0:12.6f} {1:13.6f}'.format(self.data.index[i],\
-                                                  self.data.iloc[i,0]))
+                fp.write(mfmt.format(self.data.index[i],\
+                                     self.data.iloc[i,0]))
                 if len(self.data.columns)==2:
                     fp.write(' {0:13.6f}\n'.format(self.data.iloc[i,1]))
                 else:
@@ -576,17 +628,41 @@ class Observations(metaclass=SingletonMeta):
 
 
 
-    def set_NaN(self,index):
-        """ Set observation at index to NaN and update matrix F
+    def set_NaN(self, index, update_F=True):
+        """ Set observation at index to NaN and optionally update matrix F.
 
         Args:
             index (int): index of array which needs to be set to NaN
+            update_F (bool): if False, skip growing F (use in OLS-only
+                             callers such as DataSnooping / SpikeDetector
+                             that never pass F to the MLE solver)
         """
 
-        self.data.iloc[index,0] = np.nan 
-        dummy = np.zeros(self.m)
-        dummy[index] = 1.0
-        self.F = np.c_[ self.F, dummy ] # add another column to F
+        self.data.iloc[index, 0] = np.nan
+        if not update_F:
+            return
+        k = self.F.shape[1]
+        # Peak memory during np.c_: old F stays in memory while new (k+1)-column
+        # F is being built, plus the dummy column vector.
+        peak_bytes = 2 * self.F.nbytes + 2 * self.m * 8
+        avail = _avail_ram()
+        # Use 85% of available to guard against overcommit and measurement lag.
+        if avail > 0 and peak_bytes > avail * 0.85:
+            raise MemoryError(
+                f"gap matrix F cannot grow to ({self.m} × {k + 1}): "
+                f"peak would need {peak_bytes / 1e9:.1f} GB but only "
+                f"{avail / 1e9:.1f} GB available"
+            )
+        try:
+            dummy = np.zeros(self.m)
+            dummy[index] = 1.0
+            self.F = np.c_[self.F, dummy]
+        except MemoryError:
+            needed_gb = self.m * (k + 1) * 8 / 1e9
+            raise MemoryError(
+                f"gap matrix F cannot grow to ({self.m} × {k + 1}): "
+                f"would need {needed_gb:.1f} GB"
+            ) from None
 
 
 

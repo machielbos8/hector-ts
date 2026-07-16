@@ -1,6 +1,6 @@
 DataFile            test_base_0.mom
 DataDirectory       pre_files
-OutputFile          fin_files/test_base_0.mom
+OutputFile          mom_files/test_base_0.mom
 interpolate         no
 PhysicalUnit        mm
 TimeUnit            days

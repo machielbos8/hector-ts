@@ -21,7 +21,17 @@ import json
 import shutil
 import numpy as np
 import argparse
+from datetime import datetime
 from matplotlib import pyplot as plt
+import matplotlib.dates as mdates
+
+_MJD_EPOCH_MPLNUM = mdates.date2num(datetime(1858, 11, 17))
+
+def _apply_date_axis(ax, fig):
+    loc = mdates.AutoDateLocator()
+    ax.xaxis.set_major_locator(loc)
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+    fig.autofmt_xdate()
 from hector.datasnooping import DataSnooping, SpikeDetector
 from hector.control import Control, SingletonMeta
 from hector.observations import Observations
@@ -67,28 +77,36 @@ def _write_ncf_channel_ctl(ctl_out_path, params, column):
 
 
 def _removeoutliers_ncf(ctl_fname, params, verbose):
-    """Multi-channel NCF outlier removal: processes e, n, u independently.
+    """NCF outlier removal: processes each channel independently.
 
-    Copies the raw input NCF to the output path, then overwrites each of
-    the three displacement channels with the datasnooping-cleaned version.
-    Outliers are stored as NaN so downstream tools treat them as gaps.
+    If ColumnName is set in params, only that channel is processed.
+    Otherwise the standard GNSS channels ('e', 'n', 'u') are used.
+
+    Copies the raw input NCF to the output path, then overwrites each
+    channel with the datasnooping-cleaned version.  Outliers are stored
+    as NaN so downstream tools treat them as gaps.
     """
     data_dir  = params['DataDirectory']
     datafile  = params['DataFile']
     fname_out = params['OutputFile']
 
+    # Determine which channels to process.
+    if 'ColumnName' in params:
+        columns = (params['ColumnName'],)
+    else:
+        columns = ('e', 'n', 'u')
+
     input_ncf  = Path(data_dir) / datafile
     output_ncf = Path(fname_out)
     output_ncf.parent.mkdir(parents=True, exist_ok=True)
 
-    # Preserve all channels (e, n, u, sigma_e, …) in the output before
-    # overwriting individual channels with the cleaned versions.
+    # Preserve all channels in the output before overwriting cleaned ones.
     shutil.copy2(str(input_ncf), str(output_ncf))
 
     all_output = {'input': str(input_ncf), 'output': str(fname_out),
                   'channels': {}}
 
-    for column in ('e', 'n', 'u'):
+    for column in columns:
         if verbose:
             print(f"\n  -- column {column} --")
 
@@ -104,8 +122,6 @@ def _removeoutliers_ncf(ctl_fname, params, verbose):
         ds.run(col_output)
 
         # Overwrite this channel in the output NCF with the cleaned version.
-        # ncfwrite reads the time axis from the original INPUT (self.directory /
-        # self.datafile), so the raw file must still exist — which it does.
         obs.write(str(output_ncf))
 
         all_output['channels'][column] = col_output
@@ -118,13 +134,14 @@ def _removeoutliers_ncf(ctl_fname, params, verbose):
 
     n_total = sum(
         len(all_output['channels'][c].get('outliers', []))
-        for c in ('e', 'n', 'u')
+        for c in columns
     )
     if verbose:
-        print(f"\nTotal outliers removed: {n_total}  "
-              f"(e={len(all_output['channels']['e'].get('outliers',[]))}, "
-              f"n={len(all_output['channels']['n'].get('outliers',[]))}, "
-              f"u={len(all_output['channels']['u'].get('outliers',[]))})")
+        per_ch = '  '.join(
+            f"{c}={len(all_output['channels'][c].get('outliers', []))}"
+            for c in columns
+        )
+        print(f"\nTotal outliers removed: {n_total}  ({per_ch})")
 
     with open('removeoutliers.json', 'w') as fp:
         json.dump(all_output, fp, indent=4)
@@ -184,8 +201,13 @@ def main():
     start_time = time.time()
 
     #--- NCF multi-channel path: process e, n, u independently
-    if datafile.lower().endswith('.ncf'):
-        _removeoutliers_ncf(fname, control.params, verbose)
+    if datafile.lower().endswith(('.ncf', '.nc')):
+        try:
+            _removeoutliers_ncf(fname, control.params, verbose)
+        except MemoryError as e:
+            print(f"\nERROR: out of memory — {e}")
+            print("Hint: use Spike_factor instead of IQ_factor for large data sets.")
+            sys.exit(1)
         print("\n--- {0:8.3f} s ---\n".format(float(time.time() - start_time)))
         return
 
@@ -194,16 +216,21 @@ def main():
     observations = Observations()
 
     #--- Get data
-    if observations.ts_format=='mom':
-        mjd = observations.data.index.to_numpy()
-        t   = (mjd-51544)/365.25 + 2000
+    mjd = observations.data.index.to_numpy()
+    if observations.ts_format == 'mom':
+        t = _MJD_EPOCH_MPLNUM + mjd
     else:
-        t   = observations.data.index.to_numpy()
+        t = mjd
     x = np.copy(observations.data['obs'].to_numpy())
 
     #--- Define 'output' dictionary to create json file with results
     output = {}
-    datasnooping.run(output)
+    try:
+        datasnooping.run(output)
+    except MemoryError as e:
+        print(f"\nERROR: out of memory — {e}")
+        print("Hint: use Spike_factor instead of IQ_factor for large data sets.")
+        sys.exit(1)
 
     #--- Get filtered data
     x_new = observations.data['obs'].to_numpy()
@@ -214,11 +241,11 @@ def main():
         plt.plot(t, x, 'b-', label='observed')
         plt.plot(t, x_new, 'r-', label='filtered')
         plt.legend()
-        if observations.ts_format in ('mom', 'ncf'):
-            plt.xlabel('Year')
-        else:
+        if observations.ts_format != 'mom':
             plt.xlabel(time_unit)
         plt.ylabel('[{0:s}]'.format(phys_unit))
+        if observations.ts_format == 'mom':
+            _apply_date_axis(plt.gca(), plt.gcf())
 
         if graph==True:
             plt.show()

@@ -116,7 +116,7 @@ class SpikeDetector:
                         and abs(d_left) > threshold
                         and abs(d_gap) > threshold):
                     self.x[i_last] = np.nan
-                    self.obs.set_NaN(i_last)
+                    self.obs.set_NaN(i_last, update_F=False)
                     outliers.append(float(self.t[i_last]))
                     n_found += 1
                     if self.verbose:
@@ -133,7 +133,7 @@ class SpikeDetector:
                         and abs(d_gap) > threshold
                         and abs(d_right) > threshold):
                     self.x[j_first] = np.nan
-                    self.obs.set_NaN(j_first)
+                    self.obs.set_NaN(j_first, update_F=False)
                     outliers.append(float(self.t[j_first]))
                     n_found += 1
                     if self.verbose:
@@ -170,7 +170,7 @@ class SpikeDetector:
                 if d[j - 1] * d[j] < 0:
                     if abs(d[j - 1]) > threshold and abs(d[j]) > threshold:
                         self.x[j] = np.nan
-                        self.obs.set_NaN(j)
+                        self.obs.set_NaN(j, update_F=False)
                         outliers.append(float(self.t[j]))
                         n_found += 1
 
@@ -260,7 +260,7 @@ class DataSnooping:
             for i in range(0,m):
                 if not math.isnan(self.x[i]) and abs(res[i]-median)>threshold:
                     self.x[i] = np.nan
-                    self.obs.set_NaN(i)
+                    self.obs.set_NaN(i, update_F=False)
                     n_outliers += 1
                     print('i={0:d}, n_outliers={1:d}'.format(i,n_outliers))
                     outliers.append(float(self.obs.data.index[i]))

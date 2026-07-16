@@ -1,6 +1,6 @@
 DataFile            TEST.mom
 DataDirectory       obs_files
-OutputFile          fin_files/TEST.mom
+OutputFile          mom_files/TEST.mom
 DegreePolynomial    1
 interpolate         no
 PhysicalUnit        mm

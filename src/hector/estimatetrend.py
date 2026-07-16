@@ -19,8 +19,18 @@ import math
 import time
 import json
 import argparse
+from datetime import datetime
 from matplotlib import pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
+
+_MJD_EPOCH_MPLNUM = mdates.date2num(datetime(1858, 11, 17))
+
+def _apply_date_axis(ax, fig):
+    loc = mdates.AutoDateLocator()
+    ax.xaxis.set_major_locator(loc)
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+    fig.autofmt_xdate()
 from hector.control import Control
 from hector.observations import Observations
 from hector.designmatrix import DesignMatrix
@@ -93,8 +103,7 @@ def main():
                 cols = line.split()
                 if cols[0]==station:
                     print(cols)
-                    t = (int(cols[1])-51544)/365.25 + 2000
-                    epochs.append(t)
+                    epochs.append(_MJD_EPOCH_MPLNUM + int(cols[1]))
         print('--->>>>>',epochs)
     except:
         pass
@@ -129,11 +138,11 @@ def main():
     observations.write(fname_out)
 
     #--- Get data
-    if observations.ts_format=='mom':
-        mjd = observations.data.index.to_numpy()
-        t   = (mjd-51544)/365.25 + 2000
+    mjd = observations.data.index.to_numpy()
+    if observations.ts_format in ('mom', 'ncf'):
+        t = _MJD_EPOCH_MPLNUM + mjd
     else:
-        t   = observations.data.index.to_numpy()
+        t = mjd
     x = observations.data['obs'].to_numpy()
     #print(x)
     if 'mod' in observations.data.columns:
@@ -152,11 +161,11 @@ def main():
             plt.axvline(x=epoch, color='purple', linestyle='--', alpha=0.5)
 
         plt.legend()
-        if observations.ts_format in ('mom', 'ncf'):
-            plt.xlabel('Year')
-        else:
+        if observations.ts_format not in ('mom', 'ncf'):
             plt.xlabel(time_unit)
         plt.ylabel('[{0:s}]'.format(phys_unit))
+        if observations.ts_format in ('mom', 'ncf'):
+            _apply_date_axis(plt.gca(), plt.gcf())
 
         if graph==True:
             plt.show()

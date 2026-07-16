@@ -59,7 +59,7 @@ estimatetrend -png
 
 Reads `obs_files/TEST.mom` (with the detected offset epochs from Step 2),
 estimates the trend, seasonal signals, and offset magnitudes using GGM+White
-noise and RMLE, and writes `fin_files/TEST.mom`.  The `-png` flag saves
+noise and RMLE, and writes `mom_files/TEST.mom`.  The `-png` flag saves
 a time-series plot to `data_figures/TEST.png`.
 
 ## Step 4 — Power spectral density
@@ -68,7 +68,7 @@ a time-series plot to `data_figures/TEST.png`.
 estimatespectrum
 ```
 
-Reads the residuals from `fin_files/TEST.mom` and computes the Welch
+Reads the residuals from `mom_files/TEST.mom` and computes the Welch
 periodogram.  Output is written to `estimatespectrum.out` and
 `modelspectrum.out`.
 
