@@ -158,9 +158,12 @@ class DesignMatrix(metaclass=SingletonMeta):
 
             if fpath.suffix.lower() in ('.ncf', '.nc'):
                 #--- NCF path: read named channels from MultiVariateSignals
+                #    (Control stores a single token as str, >1 tokens as list)
                 try:
-                    chan_names = control.params["MultiVariateSignals"].split()
-                except (KeyError, AttributeError):
+                    raw_signals = control.params["MultiVariateSignals"]
+                    chan_names = raw_signals.split() if isinstance(raw_signals, str) \
+                                 else list(raw_signals)
+                except KeyError:
                     chan_names = []
                 if not chan_names:
                     print('MultiVariateFile is ncf but MultiVariateSignals not set')

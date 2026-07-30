@@ -264,6 +264,24 @@ class GGM:
                 param[k] = 1.0e-6
 
         else:
+            #--- Same kappa bound as the Nparam==1 case above. Without this,
+            #    d = -0.5*kappa is unbounded, and for d greater than about
+            #    2.75 the "danger zone" clamp target below,
+            #    pow(10, 4*d-11+safety_factor), itself exceeds 1.0 -- an
+            #    invalid value for param[k+1] (which stores 1-phi, must stay
+            #    in (0,1]) that is worse than what the clamp was meant to
+            #    prevent, and feeds z=(1-phi)^2 >> 1 into hyp2f1, where it
+            #    can return a complex (mpc) result instead of a real one.
+            kappa = param[k]
+            if kappa < -3.0:
+                penalty = (3.0 - kappa)*LARGE
+                param[k] = -3.0
+                return penalty
+            elif kappa > 0.01:
+                penalty = (kappa - 0.01)*LARGE
+                param[k] = 0.01
+                return penalty
+
             d   = -0.5 * param[k]
             phi = param[k+1]
 
@@ -286,12 +304,12 @@ class GGM:
 
             #--- The following limit is most critical, stay away from zero!!
             #    Another complication is that at phi=0, you have power-law and
-            #    then d_max=0.5. Thus, a jump down from 2. Allowing this is 
+            #    then d_max=0.5. Thus, a jump down from 2. Allowing this is
             #    asking for trouble. I put lower limit to 1.0e-6.
             elif phi<1.0e-6:
                 penalty = (1.0e-6-phi)*LARGE*1.0e5
                 param[k+1] = 1.0e-6
-                
+
         return penalty
 
 
