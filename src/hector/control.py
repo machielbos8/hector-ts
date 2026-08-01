@@ -79,7 +79,10 @@ class Control(metaclass=SingletonMeta):
                     elif cols[1]=='No' or cols[1]=='no':
                         self.params[label] = False
                     elif cols[1].isdigit()==True:
-                        self.params[label] = int(cols[1])
+                        if len(cols)==2:
+                            self.params[label] = int(cols[1])
+                        else:
+                            self.params[label] = [int(c) for c in cols[1:]]
                     else:
                         if self.is_float(cols[1])==True:
                             if len(cols)==2:

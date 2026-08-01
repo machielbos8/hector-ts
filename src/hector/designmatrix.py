@@ -23,6 +23,7 @@ import math
 from hector.control import Control
 from hector.control import SingletonMeta
 from hector.observations import Observations
+from hector.my_calendar import compute_mjd
 
 #==============================================================================
 # Class definitions 
@@ -207,8 +208,20 @@ class DesignMatrix(metaclass=SingletonMeta):
             print('Zero length of time series!? am crashing...')
             sys.exit()
        
-        #--- Remember time halfway between start and end
-        self.th = 0.5*(self.ts.data.index[0] + self.ts.data.index[-1])
+        #--- Reference epoch for the nominal bias (t=th column in H)
+        try:
+            reference_epoch = control.params["ReferenceEpoch"]
+        except KeyError:
+            reference_epoch = None
+        if reference_epoch is None:
+            #--- No ReferenceEpoch given: use middle of time-series
+            self.th = 0.5*(self.ts.data.index[0] + self.ts.data.index[-1])
+        else:
+            if not isinstance(reference_epoch,list) or len(reference_epoch)!=3:
+                print('Correct usage: ReferenceEpoch year month day')
+                sys.exit()
+            [year,month,day] = reference_epoch
+            self.th = compute_mjd(year,month,day,0,0,0.0)
  
         n = self.n_degrees + 2*self.n_periods + self.n_offsets + \
                 self.n_postseismicexp + self.n_postseismiclog + self.n_ssetanh + \
