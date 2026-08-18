@@ -15,6 +15,7 @@
 import numpy as np
 import math
 from numpy.linalg import inv
+from hector._fpe import quiet_matmul
 
 #===============================================================================
 # Class definitions
@@ -22,6 +23,7 @@ from numpy.linalg import inv
 
 class OLS:
 
+    @quiet_matmul
     def compute_leastsquares(self,t,H,x,F,samenoise=False):
         """ Compute ordinary least-squares 
  

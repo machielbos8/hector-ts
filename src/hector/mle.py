@@ -24,6 +24,7 @@ from hector.fullcov import FullCov
 from hector.ammargrag import AmmarGrag
 from hector.ols import OLS
 from hector.control import Control
+from hector._fpe import quiet_matmul
 from scipy.optimize import minimize
 
 #==============================================================================
@@ -32,6 +33,7 @@ from scipy.optimize import minimize
 
 class MLE:
 
+    @quiet_matmul
     def __init__(self):
         """ initialise class
         """

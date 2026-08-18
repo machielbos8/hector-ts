@@ -24,6 +24,7 @@ from hector.control import Control
 from hector.control import SingletonMeta
 from hector.observations import Observations
 from hector.my_calendar import compute_mjd
+from hector._fpe import quiet_matmul
 
 #==============================================================================
 # Class definitions 
@@ -533,6 +534,7 @@ class DesignMatrix(metaclass=SingletonMeta):
         output['PhysicalUnit'] = self.phys_unit
 
 
+    @quiet_matmul
     def add_mod(self,theta):
         """ Compute xhat and add it to the Panda Dataframe
 

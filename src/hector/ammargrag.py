@@ -36,6 +36,7 @@ from hector.control import SingletonMeta
 
 from hector.levinson import Levinson
 from hector.schur import Schur
+from hector._fpe import quiet_matmul
 
 try:
     from hector._epoch_scan_gaps import fast_epoch_scan_gaps as _epoch_scan_gaps_cython
@@ -112,6 +113,7 @@ class AmmarGrag(metaclass=SingletonMeta):
         self.ln_det_C
 
 
+    @quiet_matmul
     def compute_leastsquares(self, t, H, x, F, samenoise=False):
         """ Compute least-squares
 
@@ -266,6 +268,7 @@ class AmmarGrag(metaclass=SingletonMeta):
         return [theta, C_theta, self.ln_det_C, sigma_eta]
 
 
+    @quiet_matmul
     def fast_epoch_scan(self, H_base, x, N, useRMLE, offset_index):
         """Efficient O(n_fixed × m²) epoch scan replacing the naive O(n_reg × m² log m) loop.
 
@@ -412,6 +415,7 @@ class AmmarGrag(metaclass=SingletonMeta):
             GA12h_table_T[:, j] = (xc1 - xc2)[lags]
         return np.ascontiguousarray(GA12h_table_T)
 
+    @quiet_matmul
     def fast_epoch_scan_with_gaps(self, H_base, x, N, useRMLE, offset_index):
         """Efficient epoch scan for series WITH data gaps (k > 0).
 
@@ -440,6 +444,7 @@ class AmmarGrag(metaclass=SingletonMeta):
             H_base, x, N, useRMLE, offset_index)
 
 
+    @quiet_matmul
     def _fast_epoch_scan_with_gaps_python(self, H_base, x, N, useRMLE, offset_index,
                                            incremental=True):
         """Pure-Python reference implementation of fast_epoch_scan_with_gaps.
