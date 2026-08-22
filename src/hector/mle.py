@@ -89,19 +89,38 @@ class MLE:
             self.ln_det_HH += math.log(U[i,i])
         self.ln_det_HH *= 2.0
  
-        #--- FullCov or AmmarGrag
-        if self.cov.Nmodels==1 and self.cov.noisemodel_names[0]=='White':
+        #--- Choose the likelihood/least-squares method. An explicit
+        #    LikelihoodMethod keyword (AmmarGrag or FullCov) overrides the
+        #    automatic choice; otherwise OLS is used for a pure white-noise
+        #    model, FullCov when more than half the data are missing, and
+        #    AmmarGrag in all other cases.
+        try:
+            method_name = control.params['LikelihoodMethod']
+        except KeyError:
+            method_name = None
+
+        if method_name is not None:
+            methods = {'ammargrag': (AmmarGrag, 'AmmarGrag'),
+                       'fullcov':   (FullCov,   'FullCov')}
+            key = str(method_name).strip().lower()
+            if key not in methods:
+                print('Unknown LikelihoodMethod "{0}"; '
+                      'choose AmmarGrag or FullCov.'.format(method_name))
+                sys.exit(1)
+            method_cls, label = methods[key]
+            self.method = method_cls()
+        elif self.cov.Nmodels==1 and self.cov.noisemodel_names[0]=='White':
             self.method = OLS()
-            if self.verbose==True:
-                print('----------------\n  Ordinary LS\n----------------')
+            label = 'Ordinary LS'
         elif obs.percentage_gaps>50:
             self.method = FullCov()
-            if self.verbose==True:
-                print('----------------\n  FullCov\n----------------')
+            label = 'FullCov'
         else:
             self.method = AmmarGrag()
-            if self.verbose==True:
-                print('----------------\n  AmmarGrag\n----------------')
+            label = 'AmmarGrag'
+
+        if self.verbose==True:
+            print('----------------\n  {0}\n----------------'.format(label))
 
 
 
