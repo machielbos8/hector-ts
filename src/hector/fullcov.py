@@ -17,6 +17,7 @@
 import numpy as np
 import math
 from numpy.linalg import inv
+from scipy.linalg import solve_triangular
 from hector._fpe import quiet_matmul
 
 #===============================================================================
@@ -43,47 +44,34 @@ class FullCov:
             sigma_eta (float)     : driving noise
         """
 
-        #--- Get size of matrix H
+        #--- Size of design matrix H
         (m,n) = H.shape
 
-        #--- Get size of matrix F which number of columns = count missing data
-        (m,k) = F.shape
-       
-        #--- leave out rows & colums with gaps 
-        xm = np.zeros((m-k))
-        Hm = np.zeros((m-k,n))
-        Cm = np.zeros((m-k,m-k))
-        ii = 0
-        for i in range(0,m): 
-            if math.isnan(x[i])==False:
-                xm[ii] = x[i]
-                Hm[ii,:] = H[i,:]
-                jj = 0
-                for j in range(0,m):
-                    if math.isnan(x[j])==False:
-                        Cm[ii,jj] = t[abs(j-i)]
-                        jj += 1
-                ii += 1
+        #--- Indices of the observed (non-gap) epochs; leave out the gaps.
+        idx  = np.where(~np.isnan(x))[0]
+        nobs = idx.size
+        xm   = np.asarray(x)[idx]
+        Hm   = H[idx,:]
 
-        #--- Already compute inverse of C
+        #--- Covariance of the observed epochs from the Toeplitz first column t:
+        #    Cm[a,b] = t[|idx[a]-idx[b]|]. Vectorised gather (no Python loop).
+        Cm = t[np.abs(idx[:,None] - idx[None,:])]
+
+        #--- Cholesky factor of C, then whiten via triangular solves (rather than
+        #    forming the explicit inverse of U): A = U^{-1} Hm, y = U^{-1} xm.
         U = np.linalg.cholesky(Cm)
-        U_inv = inv(U)
-        A = U_inv @ Hm
-        y = U_inv @ xm
+        A = solve_triangular(U, Hm, lower=True)
+        y = solve_triangular(U, xm, lower=True)
 
-        #--- Compute logarithm of determinant of C
-        ln_det_C = 0.0
-        for i in range(0,m-k):
-            ln_det_C += math.log(U[i,i])
-        ln_det_C *= 2.0
+        #--- log(det(C)) = 2 * sum(log(diag(U)))
+        ln_det_C = 2.0 * float(np.sum(np.log(np.diag(U))))
 
-        #--- Compute C_theta
+        #--- Least-squares solution
         C_theta = inv(A.T @ A)
-        theta = C_theta @ (A.T @ y)
+        theta   = C_theta @ (A.T @ y)
 
-        #--- Compute model, whitened residuals and sigma_eta
-        yhat = A @ theta
-        r = y - yhat
-        sigma_eta = math.sqrt(np.dot(r,r)/(m-k))
+        #--- Model, whitened residuals and driving noise
+        r = y - A @ theta
+        sigma_eta = math.sqrt(np.dot(r,r)/nobs)
 
         return [theta,C_theta,ln_det_C,sigma_eta]

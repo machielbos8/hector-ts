@@ -192,6 +192,8 @@ class MLE:
         """ Using Nelder-Mead, estimate least-squares + noise parameters
         """
 
+        control = Control()
+
         if self.cov.Nparam>0:
             #--- Create intial guess
             if self.randomise_first_guess==True:
@@ -200,9 +202,25 @@ class MLE:
             else:
                 param0 = self.cov.get_param0()
 
+            #--- Nelder-Mead options. Defaults reproduce earlier behaviour;
+            #    the control file may override the number of iterations
+            #    (MaxIterations) and the convergence tolerance (Tolerance,
+            #    applied to both the parameter and the log-likelihood criteria).
+            options = {'maxiter': 10000, 'xatol': 1.0e-6}
+            try:
+                options['maxiter'] = int(control.params['MaxIterations'])
+            except KeyError:
+                pass
+            try:
+                tol = float(control.params['Tolerance'])
+                options['xatol'] = tol
+                options['fatol'] = tol
+            except KeyError:
+                pass
+
             #--- search for maximum (-minimum) log-likelihood value
             result=minimize(self.log_likelihood, param0, method='Nelder-Mead',\
-		 		      options={'maxiter': 10000,'xatol':1.0e-6})
+		 		      options=options)
 
             #--- Check results
             if result.success==False:
