@@ -101,18 +101,20 @@ If you use Hector in your research, please cite:
 
 Hector v3.1 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.com/hector/).
 The core Toeplitz factorisation uses the Generalised Schur Algorithm (O(*n* log²*n*))
-instead of Durbin-Levinson (O(*n*²)), and data gaps are handled with an FFT-based
-spectral approximation. The result is 6–27× faster for typical GNSS series lengths:
+instead of Durbin-Levinson (O(*n*²)), and data gaps are handled exactly with an
+FFT-based conjugate-gradient solver. The speedup over C++ v2.2 grows with series
+length — from ~3× at 10 years to ~31× at 40 years:
 
 | Series | Gaps | Hector v3.1 (s) | Hector C++ v2.2 (s) | Speedup |
-|:---    |  ---:|            ---:|                ---:|    ---: |
-| 10 yr  |   0% |            0.45 |                 5.2 |   11.6× |
-| 20 yr  |   0% |             1.7 |                14.4 |    8.5× |
-| 30 yr  |   0% |             3.2 |                30.9 |    9.7× |
-| 40 yr  |   0% |             4.4 |                91.9 |   20.7× |
-| 10 yr  |  10% |             1.3 |                 7.3 |    5.8× |
-| 30 yr  |  10% |            14.2 |                85.4 |    6.0× |
-| 40 yr  |  10% |            24.0 |               220.1 |    9.2× |
+|:---    |  ---:|             ---:|                 ---:|    ---: |
+| 10 yr  |   0% |            1.04 |                 2.9 |    2.8× |
+| 20 yr  |   0% |            1.45 |                 6.7 |    4.6× |
+| 30 yr  |   0% |            2.28 |                21.4 |    9.4× |
+| 40 yr  |   0% |            2.39 |                73.8 |   30.9× |
+| 10 yr  |  10% |            1.42 |                 4.5 |    3.2× |
+| 20 yr  |  10% |            2.96 |                16.4 |    5.5× |
+| 30 yr  |  10% |            6.32 |                51.9 |    8.2× |
+| 40 yr  |  10% |            9.93 |               155.3 |   15.6× |
 
 *Benchmarked on Apple M4 Pro, GGM+White noise model, including offset estimation.*
 
