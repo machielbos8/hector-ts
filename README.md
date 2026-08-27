@@ -103,14 +103,14 @@ Hector v3.1 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.c
 The core Toeplitz factorisation uses the Generalised Schur Algorithm (O(*n* log²*n*))
 instead of Durbin-Levinson (O(*n*²)), and data gaps are handled exactly with an
 FFT-based conjugate-gradient solver. The speedup over C++ v2.2 grows with series
-length — up to ~25× at 40 years without gaps, and ~10× with 10% gaps:
+length — up to ~27× at 40 years without gaps, and ~10× with 10% gaps:
 
 | Series | Gaps | Hector v3.1 (s) | Hector C++ v2.2 (s) | Speedup |
 |:---    |  ---:|             ---:|                 ---:|    ---: |
 | 10 yr  |   0% |            1.11 |                 2.9 |    2.6× |
 | 20 yr  |   0% |            1.60 |                 6.6 |    4.1× |
-| 30 yr  |   0% |            2.72 |                21.8 |    8.0× |
-| 40 yr  |   0% |            2.71 |                68.7 |   25.4× |
+| 30 yr  |   0% |            2.32 |                21.8 |    9.4× |
+| 40 yr  |   0% |            2.58 |                68.7 |   26.6× |
 | 10 yr  |  10% |            2.36 |                 4.5 |    1.9× |
 | 20 yr  |  10% |            4.36 |                16.5 |    3.8× |
 | 30 yr  |  10% |            9.16 |                51.7 |    5.6× |
