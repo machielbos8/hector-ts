@@ -1,4 +1,4 @@
-# Hector v3.0
+# Hector v3.1
 
 Hector estimates trends, periodic signals, and offsets in geodetic time series
 with correlated noise. It uses Restricted Maximum Likelihood Estimation (RMLE)
@@ -99,12 +99,12 @@ If you use Hector in your research, please cite:
 
 ## Performance
 
-Hector v3.0 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.com/hector/).
+Hector v3.1 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.com/hector/).
 The core Toeplitz factorisation uses the Generalised Schur Algorithm (O(*n* log²*n*))
 instead of Durbin-Levinson (O(*n*²)), and data gaps are handled with an FFT-based
 spectral approximation. The result is 6–27× faster for typical GNSS series lengths:
 
-| Series | Gaps | Hector v3.0 (s) | Hector C++ v2.2 (s) | Speedup |
+| Series | Gaps | Hector v3.1 (s) | Hector C++ v2.2 (s) | Speedup |
 |:---    |  ---:|            ---:|                ---:|    ---: |
 | 10 yr  |   0% |            0.45 |                 5.2 |   11.6× |
 | 20 yr  |   0% |             1.7 |                14.4 |    8.5× |
