@@ -13,7 +13,7 @@ hector-examples          # creates ./hector-examples/ with examples + manual PDF
 ```
 
 `hector-examples` copies eight worked examples and the PDF user manual into a
-directory of your choice.  Open `hector_manual_v3.0.pdf` first — it explains
+directory of your choice.  Open `hector_manual_v3.1.pdf` first — it explains
 the workflow, all control-file parameters, and walks through every example
 step by step.  The examples are self-contained: each has its own data and
 control files ready to run.
