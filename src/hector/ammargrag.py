@@ -32,6 +32,7 @@ import math
 import numpy as np
 from numpy.linalg import inv
 from scipy.linalg import solve_triangular
+import scipy.fft as sp_fft
 from hector.control import SingletonMeta
 
 from hector.levinson import Levinson
@@ -50,10 +51,31 @@ try:
 except ImportError:
     _USE_CYTHON_NOGAP = False
 
+# Optional FFTW-C batched gap matvec (direct FFTW3, threaded plans). Falls back
+# to the pure-numpy/scipy _gap_matvec when the extension is unavailable.
+from pathlib import Path as _Path
+try:
+    from hector._gap_matvec import GapMatvec as _GapMatvec, GAP_MAXNB as _GAP_MAXNB
+    _HAVE_FFTW_MATVEC = True
+except ImportError:
+    _HAVE_FFTW_MATVEC = False
+    _GAP_MAXNB = 0
+_GAP_WISDOM = _Path.home() / '.cache' / 'hector' / 'fftw_wisdom_gap.dat'
+GAP_MATVEC_THREADS = 4
+
 # Series longer than this use the O(n log² n) GSA; shorter ones use O(n²) DL.
 # Measured crossover on Apple Silicon: GSA faster above n ≈ 3 500.
 GSA_THRESHOLD   = 1000
 GRAM_THRESHOLD  =  500   # below this, build G1/G2 explicitly and use exact Cholesky
+
+# Exact gap log-determinant (Chan case): log|M| = log|M_chan| + log|M_chan⁻¹M|,
+# the correction estimated by stochastic Lanczos quadrature harvested from the
+# Chan-preconditioned CG (Golub–Meurant).  A fixed probe seed keeps the MLE
+# objective deterministic; the preconditioned operator clusters near 1, so a
+# few probes and CG iterations suffice.
+LOGDET_PROBES   =    8
+LOGDET_MAXITER  =   30
+LOGDET_SEED     =    0
 
 
 def _chol_downdate_lower(L, x, start=0, check=True):
@@ -111,6 +133,248 @@ class AmmarGrag(metaclass=SingletonMeta):
         self.Qy
         self.gap_idx
         self.ln_det_C
+
+
+    def _gap_matvec(self, v):
+        """Apply the gap Gram  M = G1 G1ᵀ − G2 G2ᵀ, matrix-free.
+
+        Accepts a single vector ``(k,)`` or a block of right-hand sides
+        ``(k, nrhs)``.  G1/G2 have rows l1s/l2s shifted to each gap epoch, so
+        both G·(·) and Gᵀ·(·) are FFT convolutions/cross-correlations —
+        O(m log m), no k×k matrix ever formed.  For a block, all columns are
+        transformed in one call with the FFT running along axis 0 and threaded
+        over the batch (``scipy.fft`` ``workers=-1``), which turns the CG inner
+        product into BLAS-3-like throughput.  Used by the CG solvers for the
+        exact gap correction.
+
+        When the FFTW-C extension is available (``self._gm`` set by
+        :meth:`_setup_gap_matvec`), the whole matvec runs in C with reused
+        threaded FFTW plans; otherwise this pure-numpy path is used.
+        """
+        gm = getattr(self, '_gm', None)
+        if gm is not None and (v.ndim == 1 or v.shape[1] <= _GAP_MAXNB):
+            return gm.matvec(v)
+        m    = self._m
+        N    = self.N_fft
+        v1d  = (v.ndim == 1)
+        V    = v[:, None] if v1d else v
+        nb   = V.shape[1]
+        W            = np.zeros((N, nb))
+        W[self.gap_idx, :] = V
+        Fw  = sp_fft.rfft(W, axis=0, workers=-1)
+        U1  = sp_fft.irfft(self.Fl1[:, None] * Fw, n=N, axis=0)[:m]
+        U2  = sp_fft.irfft(self.Fl2[:, None] * Fw, n=N, axis=0)[:m]
+        pad = np.zeros((N - m, nb))
+        Fu1 = sp_fft.rfft(np.concatenate([U1, pad]), axis=0, workers=-1)
+        Fu2 = sp_fft.rfft(np.concatenate([U2, pad]), axis=0, workers=-1)
+        A1  = sp_fft.irfft(self.Fl1.conj()[:, None] * Fu1, n=N, axis=0)[:m][self.gap_idx]
+        A2  = sp_fft.irfft(self.Fl2.conj()[:, None] * Fu2, n=N, axis=0)[:m][self.gap_idx]
+        R   = A1 - A2
+        return R[:, 0] if v1d else R
+
+
+    def _setup_gap_matvec(self, N_fft, m, gap_idx):
+        """Create or refresh the optional FFTW-C batched gap matvec.
+
+        The FFTW plans depend only on (N_fft, gap pattern), so across MLE
+        evaluations the object is reused and only the whitening filters are
+        refreshed (they change every eval).  Set to None for the small-m exact
+        path or when the extension is unavailable, so `_gap_matvec` falls back
+        to the pure-numpy implementation.
+        """
+        if not _HAVE_FFTW_MATVEC or self._gram_exact:
+            self._gm = None
+            return
+        gm = getattr(self, '_gm', None)
+        if (gm is None
+                or getattr(self, '_gm_N', -1) != N_fft
+                or not np.array_equal(getattr(self, '_gm_gid', None), gap_idx)):
+            _GAP_WISDOM.parent.mkdir(parents=True, exist_ok=True)
+            self._gm = _GapMatvec(N_fft, m, gap_idx, self.Fl1, self.Fl2,
+                                  nthreads=GAP_MATVEC_THREADS,
+                                  wisdom_path=str(_GAP_WISDOM))
+            self._gm_N   = N_fft
+            self._gm_gid = gap_idx.copy()
+        else:
+            self._gm.set_filters(self.Fl1, self.Fl2)
+
+
+    def _pcg(self, b, tol=1.0e-8, maxiter=1000):
+        """Preconditioned CG solve of  M x = b  (single right-hand side).
+
+        Matrix-free matvec (_gap_matvec) preconditioned by the Chan-circulant
+        Cholesky factor (self.Mch).  M is well conditioned, so this converges in
+        a handful of iterations and returns the EXACT M⁻¹ b (to tol) even though
+        M itself is only the Chan approximation used for the preconditioner.
+        """
+        Lc = self.Mch
+        def prec(r):
+            y = solve_triangular(Lc, r, lower=True)
+            return solve_triangular(Lc.T, y, lower=False)
+        bnorm = math.sqrt(float(b @ b))
+        x = np.zeros_like(b)
+        if bnorm == 0.0:
+            return x
+        r  = b.copy()
+        z  = prec(r)
+        p  = z.copy()
+        rz = float(r @ z)
+        thresh = tol * bnorm
+        for _ in range(maxiter):
+            Ap    = self._gap_matvec(p)
+            alpha = rz / float(p @ Ap)
+            x    += alpha * p
+            r    -= alpha * Ap
+            if math.sqrt(float(r @ r)) <= thresh:
+                break
+            z      = prec(r)
+            rz_new = float(r @ z)
+            p      = z + (rz_new / rz) * p
+            rz     = rz_new
+        return x
+
+
+    def _block_pcg(self, B, tol=1.0e-8, maxiter=1000):
+        """Preconditioned CG solving  M X = B  for all columns of B at once.
+
+        Independent per-column scalars (α, β) with a single shared batched
+        matvec (`_gap_matvec` on the whole block) and one BLAS-3 preconditioner
+        solve per iteration.  Identical result to solving each column with
+        `_pcg`, but the FFTs and triangular solves run over the batch, which is
+        where multi-threading pays off.
+        """
+        Lc = self.Mch
+        def prec(R):
+            Y = solve_triangular(Lc, R, lower=True)
+            return solve_triangular(Lc.T, Y, lower=False)
+        bnorm  = np.sqrt(np.einsum('ij,ij->j', B, B))
+        X      = np.zeros_like(B)
+        if not np.any(bnorm > 0.0):
+            return X
+        R      = B.copy()
+        Z      = prec(R)
+        P      = Z.copy()
+        rz     = np.einsum('ij,ij->j', R, Z)
+        thresh = tol * bnorm
+        for _ in range(maxiter):
+            AP    = self._gap_matvec(P)
+            pAp   = np.einsum('ij,ij->j', P, AP)
+            safe  = pAp != 0.0
+            alpha = np.where(safe, rz / np.where(safe, pAp, 1.0), 0.0)
+            X    += alpha * P
+            R    -= alpha * AP
+            if np.all(np.sqrt(np.einsum('ij,ij->j', R, R)) <= thresh):
+                break
+            Z      = prec(R)
+            rz_new = np.einsum('ij,ij->j', R, Z)
+            good   = rz != 0.0
+            beta   = np.where(good, rz_new / np.where(good, rz, 1.0), 0.0)
+            P      = Z + beta * P
+            rz     = rz_new
+        return X
+
+
+    def _Msolve(self, B):
+        """Return the exact  M⁻¹ B  (B a vector or a (k, n_reg) matrix).
+
+        For m < GRAM_THRESHOLD, M (hence self.Mch) is exact, so M⁻¹ is applied
+        with two triangular solves.  Otherwise M is the Chan approximation and
+        the exact inverse is obtained by preconditioned CG — a single block
+        solve over all columns when B is a matrix.
+        """
+        if self._gram_exact:
+            Y = solve_triangular(self.Mch, B, lower=True)
+            return solve_triangular(self.Mch.T, Y, lower=False)
+        if B.ndim == 1:
+            return self._pcg(B)
+        return self._block_pcg(B)
+
+
+    def _quad_from_ab(self, al, be, zn2):
+        """Gauss-quadrature estimate of  zᵀ log(P) z  from harvested CG (α, β).
+
+        Rebuilds the Lanczos tridiagonal T (Golub–Meurant) from the coefficient
+        sequences of one probe's CG run and evaluates
+        zᵀ log(P) z ≈ ‖z‖² Σ_i (u_{i,0})² log(θ_i),  (θ_i, u_i) = eig(T).
+        """
+        n = len(al)
+        if n == 0:
+            return 0.0
+        dgl = np.empty(n)
+        off = np.empty(max(n - 1, 0))
+        dgl[0] = 1.0 / al[0]
+        for i in range(1, n):
+            dgl[i] = 1.0 / al[i] + be[i - 1] / al[i - 1]
+        for i in range(n - 1):
+            off[i] = math.sqrt(be[i]) / al[i]
+        T = np.diag(dgl) + np.diag(off, 1) + np.diag(off, -1)
+        theta, U = np.linalg.eigh(T)
+        return zn2 * float(np.sum(U[0, :] ** 2 * np.log(np.maximum(theta, 1.0e-30))))
+
+
+    def _logdet_correction(self):
+        """Estimate log|M_chan⁻¹ M| = log|M| − log|M_chan| (the exact correction
+        to the Chan log-determinant) by stochastic Lanczos quadrature on the
+        symmetric preconditioned operator  P = L⁻¹ M L⁻ᵀ  (L = self.Mch).
+
+        All LOGDET_PROBES Rademacher probes are advanced together as one block
+        CG — a single shared batched matvec and BLAS-3 triangular solves per
+        iteration — while each probe keeps its own (α, β) sequence and Lanczos
+        tridiagonal.  The per-column recurrences are independent, so the result
+        is identical to running the probes one at a time.  P's spectrum clusters
+        near 1, so a handful of iterations suffice.  Fixed seed → deterministic
+        objective.
+        """
+        Lc = self.Mch
+        k  = self.gap_idx.size
+        def Pmatvec(V):                              # P = L⁻¹ M L⁻ᵀ, batched
+            W = solve_triangular(Lc, V, lower=True, trans='T')
+            return solve_triangular(Lc, self._gap_matvec(W), lower=True)
+
+        # Draw one probe at a time (same RNG call order as the original
+        # per-probe loop) so the block estimate is bit-identical to solving the
+        # probes sequentially — SLQ with few probes is sensitive to the exact
+        # Rademacher vectors, so the draw order must be preserved.
+        rng    = np.random.default_rng(LOGDET_SEED)
+        Z      = np.empty((k, LOGDET_PROBES))
+        for j in range(LOGDET_PROBES):
+            Z[:, j] = rng.integers(0, 2, k).astype(float) * 2.0 - 1.0
+        zn2    = np.einsum('ij,ij->j', Z, Z)
+
+        R      = Z.copy()
+        P      = R.copy()
+        rs     = np.einsum('ij,ij->j', R, R)
+        thresh = 1.0e-8 * np.sqrt(zn2)
+        al     = [[] for _ in range(LOGDET_PROBES)]
+        be     = [[] for _ in range(LOGDET_PROBES)]
+        done   = np.zeros(LOGDET_PROBES, dtype=bool)
+        for _ in range(LOGDET_MAXITER):
+            AP    = Pmatvec(P)
+            pAp   = np.einsum('ij,ij->j', P, AP)
+            act   = ~done & (pAp > 0.0)
+            alpha = np.where(act, rs / np.where(act, pAp, 1.0), 0.0)
+            R     = R - alpha * AP
+            rs_new = np.einsum('ij,ij->j', R, R)
+            for j in range(LOGDET_PROBES):
+                if done[j]:
+                    continue
+                if pAp[j] <= 0.0:                    # breakdown: freeze, keep T so far
+                    done[j] = True
+                    continue
+                al[j].append(float(alpha[j]))
+                be[j].append(float(rs_new[j] / rs[j]))
+                if math.sqrt(rs_new[j]) <= thresh[j]:
+                    done[j] = True
+            if np.all(done):
+                break
+            good = ~done
+            beta = np.where(good, rs_new / np.where(good, rs, 1.0), 0.0)
+            P    = R + beta * P
+            rs   = rs_new
+
+        total = sum(self._quad_from_ab(al[j], be[j], zn2[j])
+                    for j in range(LOGDET_PROBES))
+        return total / LOGDET_PROBES
 
 
     @quiet_matmul
@@ -207,8 +471,28 @@ class AmmarGrag(metaclass=SingletonMeta):
                 Fy2 = np.fft.rfft(np.concatenate([self.y2, self.z]))
                 G1y1 = np.fft.irfft(Fl1c * Fy1, n=N_fft)[:m].real[gap_idx]
                 G2y2 = np.fft.irfft(Fl2c * Fy2, n=N_fft)[:m].real[gap_idx]
-                # Mch @ Qy = (G1y1 − G2y2)  ← O(k²) forward substitution
+                # Mch @ Qy = (G1y1 − G2y2)  ← O(k²) forward substitution.
+                # Half-factor solve kept as-is for the offset-scan fast path.
                 self.Qy = solve_triangular(self.Mch, G1y1 - G2y2, lower=True)
+
+                #--- Exact gap correction (design X): apply the FULL M⁻¹ so that
+                #    C_theta, theta and the residual sum-of-squares are exact even
+                #    when M is the Chan circulant approximation (m ≥ GRAM_THRESHOLD).
+                #    For m < GRAM_THRESHOLD, M is already exact; otherwise M⁻¹ is
+                #    applied matrix-free by preconditioned CG (Chan factor as the
+                #    preconditioner, FFT matrix-vector products).
+                self._m          = m
+                self._gram_exact = m < GRAM_THRESHOLD
+                self._setup_gap_matvec(N_fft, m, gap_idx)
+                self.rhs_y       = G1y1 - G2y2
+                self.Qy_full     = self._Msolve(self.rhs_y)
+
+                #--- Exact log-determinant (design X+): the line above added the
+                #    Chan value log|M_chan|; for the Chan case add the correction
+                #    log|M_chan⁻¹M| (CG-harvested SLQ) so ln_det_C is exact too.
+                #    (Small-m path uses the exact M, so no correction is needed.)
+                if not self._gram_exact:
+                    self.ln_det_C += self._logdet_correction()
 
         #=== END OF NOISE-DEPENDENT SECTION
 
@@ -241,20 +525,23 @@ class AmmarGrag(metaclass=SingletonMeta):
                 G2A2j = np.fft.irfft(Fl2c * FA2j, n=self.N_fft)[:m].real[gap_idx]
                 GA12[:, j] = G1A1j - G2A2j
 
-            # Mch @ QA = GA12  ← O(k² × n_reg) forward substitution
-            QA      = solve_triangular(self.Mch, GA12, lower=True)
-            C_theta = inv(A1 @ A1.T - A2 @ A2.T - QA.T @ QA)
-            theta   = C_theta @ (A1 @ self.y1 - A2 @ self.y2 - QA.T @ self.Qy)
+            # Exact gap correction (design X): use the FULL M⁻¹ (via _Msolve),
+            # not the Chan half-factor, so C_theta, theta and the residual
+            # sum-of-squares are exact even when M is the Chan approximation.
+            #   QA = M⁻¹ GA12 ,  self.Qy_full = M⁻¹ (G1@y1 − G2@y2)
+            QA      = self._Msolve(GA12)
+            C_theta = inv(A1 @ A1.T - A2 @ A2.T - GA12.T @ QA)
+            theta   = C_theta @ (A1 @ self.y1 - A2 @ self.y2 - GA12.T @ self.Qy_full)
 
             t1 = self.y1 - A1.T @ theta
             t2 = self.y2 - A2.T @ theta
 
-            # Qt = Minv @ (G1@t1 − G2@t2)
-            #    = Minv @ ((G1@y1 − G2@y2) − (G1@A1.T − G2@A2.T) @ theta)
-            #    = Qy − QA @ theta  — no extra FFTs needed
-            Qt = self.Qy - QA @ theta
+            # Whitened-residual gap term  bᵀ M⁻¹ b  with  b = (G1@y1−G2@y2) − GA12·theta
+            # and  Qt = M⁻¹ b = Qy_full − QA·theta  (no extra FFTs).
+            b  = self.rhs_y - GA12 @ theta
+            Qt = self.Qy_full - QA @ theta
 
-            rss = (np.dot(t1, t1) - np.dot(t2, t2) - np.dot(Qt, Qt)) / (m - k)
+            rss = (np.dot(t1, t1) - np.dot(t2, t2) - np.dot(b, Qt)) / (m - k)
             sigma_eta = math.sqrt(rss) if rss > 0.0 else math.nan
         else:
             C_theta = inv(A1 @ A1.T - A2 @ A2.T)
