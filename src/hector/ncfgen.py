@@ -30,7 +30,7 @@
 # First column: MJD (float64). Remaining columns match the order of
 # "channels" in meta.json. Missing values may be written as NaN.
 #
-# This file is part of Hector 3.0.
+# This file is part of Hector 3.1.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other

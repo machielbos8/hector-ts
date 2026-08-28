@@ -16,7 +16,7 @@
 #   Products: FFT cross-correlation  irfft(Fl1c * Fv)[gap_idx]  — O(m log m)
 #   Qt:       algebraic shortcut  Qy − QA @ theta  — no extra FFTs
 #
-# This file is part of Hector 3.0.
+# This file is part of Hector 3.1.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -29,6 +29,7 @@
 #===============================================================================
 
 import math
+import os
 import numpy as np
 from numpy.linalg import inv
 from scipy.linalg import solve_triangular
@@ -61,7 +62,11 @@ except ImportError:
     _HAVE_FFTW_MATVEC = False
     _GAP_MAXNB = 0
 _GAP_WISDOM = _Path.home() / '.cache' / 'hector' / 'fftw_wisdom_gap.dat'
-GAP_MATVEC_THREADS = 4
+# Threads used by the FFTW gap-correction matvec (links fftw3_threads, so
+# OMP_NUM_THREADS does NOT govern it).  Default 4 for single-process use;
+# set HECTOR_FFTW_THREADS=1 to make hector single-threaded inside a
+# multiprocessing pool (avoids CPU oversubscription — see mc_study).
+GAP_MATVEC_THREADS = int(os.environ.get("HECTOR_FFTW_THREADS", "4"))
 
 # Series longer than this use the O(n log² n) GSA; shorter ones use O(n²) DL.
 # Measured crossover on Apple Silicon: GSA faster above n ≈ 3 500.
@@ -435,29 +440,52 @@ class AmmarGrag(metaclass=SingletonMeta):
                 gap_idx = self.gap_idx
 
                 # ── Gram matrix M = G1 G1ᵀ − G2 G2ᵀ ─────────────────────────
-                if m < GRAM_THRESHOLD:
-                    # Exact: construct G_s row-by-row from the scaled whitening
-                    # vectors, then Cholesky-factorise M directly.
-                    l1s = l1[:m]
-                    l2s = l2[:m]
+                l1s = l1[:m]
+                l2s = l2[:m]
+
+                def _exact_gram():
+                    """Exact gap Gram G1 G1ᵀ − G2 G2ᵀ (always positive definite),
+                    built row-by-row from the scaled whitening vectors."""
                     G1 = np.zeros((k, m))
                     G2 = np.zeros((k, m))
                     for i, gi in enumerate(gap_idx):
                         G1[i, gi:] = l1s[:m - gi]
                         G2[i, gi:] = l2s[:m - gi]
-                    M_exact = G1 @ G1.T - G2 @ G2.T
-                    Mch = np.linalg.cholesky(M_exact)
+                    return G1 @ G1.T - G2 @ G2.T
+
+                gram_exact = m < GRAM_THRESHOLD
+                if gram_exact:
+                    # Small m: factor the exact Gram directly (no CG needed).
+                    Mch = np.linalg.cholesky(_exact_gram())
                 else:
-                    # Approach F: Chan's optimal circulant (m-point)
-                    # c_j = t_j for j ≤ m//2, t_{m−j} otherwise.
-                    # r_inv[d] = IFFT(1/S)[d];  M[i,j] = r_inv[|g_i − g_j|]
-                    half  = m // 2
+                    # Approach F: Chan's optimal circulant (m-point) as the CG
+                    # preconditioner.  c_j = t_j for j ≤ m//2, t_{m−j} otherwise;
+                    # r_inv[d] = IFFT(1/S)[d];  M_approx[i,j] = r_inv[|g_i − g_j|].
+                    half   = m // 2
                     c_chan = np.concatenate([t[:half + 1], t[1:m - half][::-1]])
-                    ev    = np.fft.rfft(c_chan).real
-                    r_inv = np.fft.irfft(1.0 / np.maximum(ev, 1e-30), n=m).real
-                    lags  = np.abs(gap_idx[:, None] - gap_idx[None, :])
-                    M_approx = r_inv[lags]
-                    Mch = np.linalg.cholesky(M_approx)
+                    ev     = np.fft.rfft(c_chan).real
+                    Mch    = None
+                    if ev.min() > 0.0:
+                        r_inv = np.fft.irfft(1.0 / ev, n=m).real
+                        lags  = np.abs(gap_idx[:, None] - gap_idx[None, :])
+                        try:
+                            Mch = np.linalg.cholesky(r_inv[lags])
+                        except np.linalg.LinAlgError:
+                            Mch = None
+                    if Mch is None:
+                        # Chan circulant is NOT positive definite: its eigenvalues
+                        # ring negative when the ACF has not decayed by the wrap
+                        # lag m//2 — i.e. steep + long-memory noise (e.g. Matern
+                        # κ=−1.6 with small λ, correlation length ≳ m).  A PD-repaired
+                        # circulant (|S|, spectral flooring) restores PD but is a poor
+                        # preconditioner here (Serra-Capizzano–Tyrtyshnikov 1999: no
+                        # circulant is superlinear for a spectrum with a pole), so the
+                        # SLQ log|M| correction — which needs M_chan ≈ M — becomes
+                        # inaccurate.  Fall back instead to the exact gap Gram (always
+                        # PD): θ, C_θ AND ln|M| are then exact.  O(k²m + k³), but only
+                        # in this rare regime.  See docs/hector_architecture.md.
+                        Mch = np.linalg.cholesky(_exact_gram())
+                        gram_exact = True
 
                 self.ln_det_C += 2.0 * np.sum(np.log(np.diag(Mch)))
                 self.Mch = Mch   # store factor; solve_triangular replaces dtrtri
@@ -482,7 +510,7 @@ class AmmarGrag(metaclass=SingletonMeta):
                 #    applied matrix-free by preconditioned CG (Chan factor as the
                 #    preconditioner, FFT matrix-vector products).
                 self._m          = m
-                self._gram_exact = m < GRAM_THRESHOLD
+                self._gram_exact = gram_exact
                 self._setup_gap_matvec(N_fft, m, gap_idx)
                 self.rhs_y       = G1y1 - G2y2
                 self.Qy_full     = self._Msolve(self.rhs_y)

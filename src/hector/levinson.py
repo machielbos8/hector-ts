@@ -10,7 +10,7 @@
 # Algorithm: Chapter 3 of Ng (2004) "Iterative Methods for Toeplitz Systems",
 # pp. 28-29; also Bos et al. (2013) Journal of Geodesy.
 #
-# This file is part of Hector 3.0.
+# This file is part of Hector 3.1.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other

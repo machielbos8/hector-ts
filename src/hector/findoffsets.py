@@ -13,7 +13,7 @@
 #   OffsetThreshold   <float>   delta-ln-L required to accept an offset  [20.0]
 #   MaxOffsets        <int>     stop after this many offsets found        [50]
 #
-# This file is part of Hector 3.0.
+# This file is part of Hector 3.1.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other

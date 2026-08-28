@@ -14,7 +14,7 @@
 # Bit-for-bit this differs from the numpy/pocketfft path only at FFT round-off
 # (~1e-14 relative), like any FFT-backend change.
 #
-# This file is part of Hector 3.0.
+# This file is part of Hector 3.1.
 #
 # cython: language_level=3
 # cython: boundscheck=False

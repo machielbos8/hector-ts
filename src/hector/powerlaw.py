@@ -6,7 +6,7 @@
 # Bos, MS, Fernandes, RMS, Williams, SDP & Bastos, L (2008). "Fast error 
 # analysis of continuous GPS observations". Journal of Geodesy, 82(3), 157-166.
 #
-# This file is part of Hector 3.0.
+# This file is part of Hector 3.1.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other

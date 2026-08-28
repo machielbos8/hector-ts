@@ -10,7 +10,7 @@
 # Compile with:
 #   python setup_gap_correction.py build_ext --inplace   (from hector-ts/code/)
 #
-# This file is part of Hector 3.0.
+# This file is part of Hector 3.1.
 #
 # cython: language_level=3
 # cython: boundscheck=False

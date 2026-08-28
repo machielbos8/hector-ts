@@ -2,7 +2,7 @@
 #
 # Create design matrix
 #
-# This file is part of Hector 3.0.
+# This file is part of Hector 3.1.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -445,7 +445,7 @@ class DesignMatrix(metaclass=SingletonMeta):
                                                                 error[i],self.phys_unit))
                 i += 1
             for j in range(0,self.n_channels):
-                print('scale factor of {0:s} : {1:7.2f} +/- {2:5.2f} {3:s}'.format(\
+                print('scale factor of {0:s} : {1:9.4f} +/- {2:8.4f} {3:s}'.format(\
                                     self.channel_names[j],theta[i],error[i],self.phys_unit))
                 i += 1
             if self.n_breaks > 0:
