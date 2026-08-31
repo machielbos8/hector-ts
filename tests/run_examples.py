@@ -339,6 +339,22 @@ def main():
         print(f'  → {status}  ({elapsed:.1f}s)')
         results[name] = passed
 
+    #--- Final section: input error-handling (negative tests).  Not examples —
+    #    these check that broken control/.mom files fail with a clear message
+    #    instead of a traceback or a hang.  test_input_errors.py sits either in
+    #    a tests/ subdir (dev layout) or beside this file (ts CI layout).
+    here = Path(__file__).resolve().parent
+    for cand in (here, here / 'tests'):
+        if (cand / 'test_input_errors.py').is_file():
+            sys.path.insert(0, str(cand))
+            break
+    try:
+        from test_input_errors import run_error_tests
+        results['errors'] = run_error_tests(verbose=True)
+    except ImportError:
+        print('\n  [SKIP] test_input_errors.py not found — '
+              'error-handling section skipped')
+
     total_elapsed = time.time() - total_t0
 
     print(f'\n{"=" * 60}')

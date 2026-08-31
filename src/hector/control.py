@@ -66,14 +66,24 @@ class Control(metaclass=SingletonMeta):
         file_exists = os.path.exists(ctl_file) 
         if file_exists==False:
             print('Cannot open {0:s}'.format(ctl_file))
-            sys.exit()
+            sys.exit(1)
         else:
             with open(ctl_file,'r') as fp:
-                for line in fp:
+                for line_no, line in enumerate(fp, start=1):
                     cols = line.split()
                     if not cols or cols[0].startswith('#'):
                         continue
                     label = cols[0]
+                    #--- A keyword must be followed by at least one value.
+                    #    Catch this here with a clear message instead of an
+                    #    opaque IndexError further down (a stray word or a
+                    #    left-over here-doc 'EOF' line is a common cause).
+                    if len(cols)<2:
+                        print("Error in control file '{0:s}', line {1:d}: "
+                              "keyword '{2:s}' has no value.".\
+                              format(ctl_file, line_no, label))
+                        print("  offending line: '{0:s}'".format(line.strip()))
+                        sys.exit(1)
                     if cols[1]=='Yes' or cols[1]=='yes':
                         self.params[label] = True
                     elif cols[1]=='No' or cols[1]=='no':
@@ -94,12 +104,31 @@ class Control(metaclass=SingletonMeta):
                         else:
                             if len(cols)==2:
                                 self.params[label] = cols[1]
-                            elif len(cols)>2:
-                                self.params[label] = cols[1:]
                             else:
-                                print('found label {0:s} but no value!'.\
-								format(label))
-                                sys.exit()
+                                self.params[label] = cols[1:]
+
+
+    def get_required(self, key, hint=''):
+        """Return a mandatory control parameter.
+
+        Exits with a clear message naming the missing keyword instead of
+        letting an opaque ``KeyError`` propagate.
+
+        Args:
+           key  (string) : the control-file keyword that must be present
+           hint (string) : optional example line shown to the user
+
+        Returns:
+           the value stored for ``key``
+        """
+        if key not in self.params:
+            msg = "Error: required keyword '{0:s}' is missing from the " \
+                  "control file.".format(key)
+            if hint:
+                msg += ' ' + hint
+            print(msg)
+            sys.exit(1)
+        return self.params[key]
 
 
     def is_float(self,x):

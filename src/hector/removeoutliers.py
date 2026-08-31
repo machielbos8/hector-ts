@@ -15,6 +15,7 @@
 #===============================================================================
 
 import os
+import sys
 import math
 import time
 import json
@@ -86,9 +87,12 @@ def _removeoutliers_ncf(ctl_fname, params, verbose):
     channel with the datasnooping-cleaned version.  Outliers are stored
     as NaN so downstream tools treat them as gaps.
     """
-    data_dir  = params['DataDirectory']
-    datafile  = params['DataFile']
-    fname_out = params['OutputFile']
+    control   = Control()
+    data_dir  = params.get('DataDirectory', '.')
+    datafile  = control.get_required('DataFile',
+                    "Add a line such as 'DataFile mydata.ncf'.")
+    fname_out = control.get_required('OutputFile',
+                    "Add a line such as 'OutputFile cleaned.ncf'.")
 
     # Determine which channels to process.
     if 'ColumnName' in params:
@@ -195,7 +199,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    removeoutliers, version 3.1.1.")
+        print("    removeoutliers, version 3.1.2.")
         print("***************************************")
 
     start_time = time.time()
@@ -265,7 +269,8 @@ def main():
                 fig.savefig(fname, format='png', bbox_inches='tight', dpi=300)
 
     #--- save cleaned time series to file
-    fname_out = control.params['OutputFile']
+    fname_out = control.get_required('OutputFile',
+                    "Add a line such as 'OutputFile results.mom' to the control file.")
     observations.write(fname_out)
 
     #--- Save dictionary 'output' as json file

@@ -142,14 +142,22 @@ class Observations(metaclass=SingletonMeta):
         self.ZIPJSON_KEY = 'base64(zip(o))'
 
 
-        #--- Read filename with observations and the directory
+        #--- Read filename with observations and the directory.  A missing
+        #    DataDirectory defaults to the current directory rather than
+        #    silently skipping the data (a common cause of an empty run).
         try:
             self.datafile = control.params['DataFile']
-            self.directory = Path(control.params['DataDirectory'])
+        except KeyError:
+            self.datafile = 'None'
+        if self.datafile != 'None':
+            try:
+                self.directory = Path(control.params['DataDirectory'])
+            except KeyError:
+                self.directory = Path('.')
             fname = str(self.directory / self.datafile)
-        except Exception as e:
-            fname = self.datafile = 'None'
+        else:
             self.directory = ''
+            fname = 'None'
 
         #--- Which format? Auto-detect NCF from file extension when not explicit.
         try:
@@ -163,13 +171,13 @@ class Observations(metaclass=SingletonMeta):
         if self.ts_format == 'mom':
             if not (self.time_unit=='unknown' or self.time_unit=='days'):
                 print('TimeUnit should be days, not {0:s}!'.format(self.time_unit))
-                sys.exit()
+                sys.exit(1)
             if not fname=='None':
                 self.momread(fname)
         elif self.ts_format == 'ncf':
             if not (self.time_unit=='unknown' or self.time_unit=='days'):
                 print('TimeUnit should be days, not {0:s}!'.format(self.time_unit))
-                sys.exit()
+                sys.exit(1)
             #--- Are there channels with estimated trajectory models
             try:
                 self.use_residuals = control.params['UseResiduals']
@@ -180,7 +188,7 @@ class Observations(metaclass=SingletonMeta):
                 self.column_name = control.params['ColumnName']
             except Exception as e:
                 print(e)
-                sys.exit()
+                sys.exit(1)
             if not fname=='None':
                 self.ncfread(fname)
         elif self.ts_format == 'gen':
@@ -188,7 +196,7 @@ class Observations(metaclass=SingletonMeta):
                 self.genread(fname)
         else:
             print('Unknown format: {0:s}'.format(self.ts_format))
-            sys.exit()
+            sys.exit(1)
 
         #--- Inform the user
         if self.verbose==True:
@@ -256,7 +264,7 @@ class Observations(metaclass=SingletonMeta):
         #--- Check if file exists
         if os.path.isfile(fname)==False:
             print('File {0:s} does not exist'.format(fname))
-            sys.exit()
+            sys.exit(1)
         
         #--- Read the file (header + time series)
         t = []
@@ -264,57 +272,107 @@ class Observations(metaclass=SingletonMeta):
         mod = []
         mjd_old = 0.0
         with open(fname,'r') as fp:
-            for line in fp:
+            for line_no, line in enumerate(fp, start=1):
                 cols = line.split()
+                if not cols:
+                    continue
                 if line.startswith('#')==True:
-                    if len(cols)>3:
-                        if cols[1]=='sampling' and cols[2]=='period':
+                    #--- Header lines: '# sampling period T', '# offset MJD',
+                    #    '# break MJD', '# exp|log|tanh MJD T'.  Guard the token
+                    #    count and report a bad number with the line it is on
+                    #    rather than crashing on an IndexError / ValueError.
+                    try:
+                        if len(cols)>3 and cols[1]=='sampling' \
+                                       and cols[2]=='period':
                             self.sampling_period = float(cols[3])
-                    if len(cols)>2:
-                        if cols[0]=='#' and cols[1]=='offset':
+                        elif len(cols)>2 and cols[1]=='offset':
                             self.offsets.append(float(cols[2]))
-                        elif cols[0]=='#' and cols[1]=='break':
+                        elif len(cols)>2 and cols[1]=='break':
                             self.breaks.append(float(cols[2]))
-                        elif cols[0]=='#' and cols[1]=='exp':
+                        elif len(cols)>1 and cols[1] in ('exp','log','tanh'):
+                            if len(cols)<4:
+                                print("Error in {0:s}, line {1:d}: '# {2:s}' needs "
+                                      "an epoch and a time constant, "
+                                      "e.g. '# {2:s} 54000.0 100.0'.".\
+                                      format(fname, line_no, cols[1]))
+                                sys.exit(1)
                             mjd = float(cols[2])
                             T   = float(cols[3])
-                            self.postseismicexp.append([mjd,T])
-                        elif cols[0]=='#' and cols[1]=='log':
-                            mjd = float(cols[2])
-                            T   = float(cols[3])
-                            self.postseismiclog.append([mjd,T])
-                        elif cols[0]=='#' and cols[1]=='tanh':
-                            mjd = float(cols[2])
-                            T   = float(cols[3])
-                            self.ssetanh.append([mjd,T])
-                else:
-                    if len(cols)<2 or len(cols)>3:
-                        print('Found illegal row: {0:s}'.format(line))
-                        sys.exit()
-                    # Adaptive tolerance: 1% of period keeps float64 rounding
-                    # errors out while still detecting single-sample gaps.
-                    # The fixed 1e-6 d tolerance equals 54% of the period for
-                    # 6 Hz data and causes false gap insertions.
-                    TINY = 0.01 * self.sampling_period
+                            if   cols[1]=='exp':  self.postseismicexp.append([mjd,T])
+                            elif cols[1]=='log':  self.postseismiclog.append([mjd,T])
+                            else:                 self.ssetanh.append([mjd,T])
+                    except ValueError:
+                        print("Error in {0:s}, line {1:d}: could not read a number "
+                              "in the header line:".format(fname, line_no))
+                        print("  '{0:s}'".format(line.strip()))
+                        sys.exit(1)
+                    continue
+
+                #--- Data line: 'MJD obs' or 'MJD obs model'
+                if len(cols)<2 or len(cols)>3:
+                    print("Error in {0:s}, line {1:d}: expected 2 or 3 columns "
+                          "(MJD obs [model]) but found {2:d}:".\
+                          format(fname, line_no, len(cols)))
+                    print("  '{0:s}'".format(line.strip()))
+                    sys.exit(1)
+                if self.sampling_period<=0.0:
+                    print("Error in {0:s}: no valid sampling period is known. Add a "
+                          "header line '# sampling period <value_in_days>' before "
+                          "the data (e.g. '# sampling period 1.0' for daily data, "
+                          "'# sampling period 0.00347222' for 5-minute data).".\
+                          format(fname))
+                    sys.exit(1)
+                try:
                     mjd = float(cols[0])
-                    #--- Fill gaps with NaN's
-                    if mjd_old>0.0:
-                        while abs(mjd-mjd_old-self.sampling_period)>TINY:
-                            mjd_old += self.sampling_period
-                            t.append(mjd_old)
-                            obs.append(np.nan)
-                            if len(cols)==3:
-                                mod.append(float(np.nan))
-                            if mjd_old>mjd-TINY:
-                                print('Someting is very wrong here....')
-                                print('mjd={0:f}'.format(mjd))
-                                sys.exit()
-                    t.append(mjd)
-                    mjd_old = mjd
+                except ValueError:
+                    print("Error in {0:s}, line {1:d}: first column is not a valid "
+                          "MJD:".format(fname, line_no))
+                    print("  '{0:s}'".format(line.strip()))
+                    sys.exit(1)
+                # Adaptive tolerance: 1% of period keeps float64 rounding
+                # errors out while still detecting single-sample gaps.
+                # The fixed 1e-6 d tolerance equals 54% of the period for
+                # 6 Hz data and causes false gap insertions.
+                TINY = 0.01 * self.sampling_period
+                #--- Fill gaps with NaN's
+                if mjd_old>0.0:
+                    if mjd < mjd_old - TINY:
+                        print("Error in {0:s}, line {1:d}: epoch {2:.6f} is not "
+                              "after the previous epoch {3:.6f}. Epochs must "
+                              "increase monotonically (check for duplicate or "
+                              "out-of-order rows).".\
+                              format(fname, line_no, mjd, mjd_old))
+                        sys.exit(1)
+                    while abs(mjd-mjd_old-self.sampling_period)>TINY:
+                        mjd_old += self.sampling_period
+                        t.append(mjd_old)
+                        obs.append(np.nan)
+                        if len(cols)==3:
+                            mod.append(float(np.nan))
+                        if mjd_old>mjd-TINY:
+                            print("Error in {0:s}, line {1:d}: the spacing to epoch "
+                                  "{2:.6f} is not a whole multiple of the sampling "
+                                  "period {3:g} d. Check the '# sampling period' "
+                                  "value or for misaligned epochs.".\
+                                  format(fname, line_no, mjd, self.sampling_period))
+                            sys.exit(1)
+                t.append(mjd)
+                mjd_old = mjd
+                try:
                     obs.append(self.scale_factor * float(cols[1]))
                     if len(cols)==3:
                         mod.append(self.scale_factor * float(cols[2]))
-        
+                except ValueError:
+                    print("Error in {0:s}, line {1:d}: observation value is not a "
+                          "number:".format(fname, line_no))
+                    print("  '{0:s}'".format(line.strip()))
+                    sys.exit(1)
+
+        if len(t)==0:
+            print("Error in {0:s}: no data rows were found (only comments/blank "
+                  "lines?).".format(fname))
+            sys.exit(1)
+
         self.create_dataframe_and_F(t,obs,mod,self.sampling_period)
 
 
@@ -343,7 +401,7 @@ class Observations(metaclass=SingletonMeta):
         if self.column_name not in channels:
             print('Could not find channel {0:s} in {1:s}'.format(
                   self.column_name, fname))
-            sys.exit()
+            sys.exit(1)
 
         y = np.array(channels[self.column_name], dtype=float)
 
@@ -352,7 +410,7 @@ class Observations(metaclass=SingletonMeta):
             if res_name not in channels:
                 print('Could not find channel {0:s} in {1:s}'.format(
                       res_name, fname))
-                sys.exit()
+                sys.exit(1)
             y = y - np.array(channels[res_name], dtype=float)
 
         #--- Offsets for this channel
@@ -370,7 +428,7 @@ class Observations(metaclass=SingletonMeta):
             if mjd_old > time_mjd[i] - TINY:
                 print('Something is very wrong here....')
                 print(' mjd={0:f}'.format(time_mjd[i]))
-                sys.exit()
+                sys.exit(1)
             t.append(time_mjd[i])
             mjd_old = time_mjd[i]
             obs.append(self.scale_factor * y[i])
@@ -391,7 +449,7 @@ class Observations(metaclass=SingletonMeta):
         #--- Check if file exists
         if os.path.isfile(fname)==False:
             print('File {0:s} does not exist'.format(fname))
-            sys.exit()
+            sys.exit(1)
 
         #--- Read the file (header + time series)
         t = []
@@ -411,7 +469,7 @@ class Observations(metaclass=SingletonMeta):
                 else:
                     if len(cols)<2 or len(cols)>3:
                         print('Found illegal row: {0:s}'.format(line))
-                        sys.exit()
+                        sys.exit(1)
 
                     tt = float(cols[0])
                     #--- Fill gaps with NaN's
@@ -425,7 +483,7 @@ class Observations(metaclass=SingletonMeta):
                             if tt_old>tt-TINY:
                                 print('Someting is very wrong here....')
                                 print('tt={0:f}'.format(tt))
-                                sys.exit()
+                                sys.exit(1)
                     else:
                         first_observation = False
 
@@ -451,7 +509,7 @@ class Observations(metaclass=SingletonMeta):
         except IOError: 
            print('Error: File {0:s} cannot be opened for written.'. \
                                                          format(fname))
-           sys.exit()
+           sys.exit(1)
         if self.verbose==True:
             print('--> {0:s}'.format(fname))
         
@@ -571,7 +629,7 @@ class Observations(metaclass=SingletonMeta):
         except IOError: 
            print('Error: File {0:s} cannot be opened for written.'. \
                                                          format(fname))
-           sys.exit()
+           sys.exit(1)
         if self.verbose==True:
             print('--> {0:s}'.format(fname))
         
@@ -692,4 +750,4 @@ class Observations(metaclass=SingletonMeta):
             self.genwrite(fname)
         else:
             print('unknown ts_format: {0:s}'.format(self.ts_format))
-            sys.exit()
+            sys.exit(1)

@@ -61,7 +61,7 @@ def main():
 
     if verbose:
         print("\n***************************************")
-        print("    findoffsets, version 3.1.1.")
+        print("    findoffsets, version 3.1.2.")
         print("***************************************")
 
     #--- Optional offset-detection parameters
@@ -119,7 +119,8 @@ def main():
         json.dump(output, fp, indent=4)
 
     #--- Write output file with offsets annotated
-    fname_out = control.params['OutputFile']
+    fname_out = control.get_required('OutputFile',
+                    "Add a line such as 'OutputFile results.mom' to the control file.")
     observations.write(fname_out)
 
     if verbose:

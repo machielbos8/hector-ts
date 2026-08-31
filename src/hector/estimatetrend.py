@@ -75,7 +75,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    estimatetrend, version 3.1.1.")
+        print("    estimatetrend, version 3.1.2.")
         print("***************************************")
 
    
@@ -134,7 +134,8 @@ def main():
 
     #--- Compute xhat, save it as column 'mod' to DataFrame and save it to file
     designmatrix.add_mod(theta)
-    fname_out = control.params['OutputFile']
+    fname_out = control.get_required('OutputFile',
+                    "Add a line such as 'OutputFile results.mom' to the control file.")
     observations.write(fname_out)
 
     #--- Get data
