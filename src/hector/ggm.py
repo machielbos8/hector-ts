@@ -242,17 +242,22 @@ class GGM:
                 penalty = (kappa - 0.01)*LARGE
                 param[k] = 0.01
             else:
-                #--- Apply the same 2F1 safety check as the 2-param case,
-                #    using the fixed phi value.  kappa can reach -3 if
-                #    phi_fixed is large enough, but small phi_fixed (e.g.
-                #    GGM_1mphi=6.9e-6) tightens the allowed range.
-                safety_factor = 2.0
-                y = math.log10(self.phi_fixed) if self.phi_fixed > 0.0 else 9.9e99
-                if y < (4.0*d - 11.0 + safety_factor):
-                    penalty = ((4.0*d - 11.0 + safety_factor) - y)*LARGE
-                    # clamp kappa so d = (y - safety_factor + 11) / 4
-                    kappa_limit = -2.0*(y - safety_factor + 11.0) / 4.0
-                    param[k] = max(-3.0, kappa_limit)
+                #--- Keep d inside the numerically safe zone for the fixed
+                #    1-phi.  The GGM covariance is positive-definite in exact
+                #    arithmetic for all d>0, but the double-precision 2F1
+                #    backward recursion loses accuracy for large d + tiny
+                #    1-phi and the Toeplitz matrix then turns indefinite.
+                #    Empirically (GSA PD test) that cliff sits near
+                #    log10(1-phi) = 9d - 19.6, essentially independent of
+                #    series length; we hold a ~1 decade margin.  For a fixed
+                #    1-phi this caps d at (log10(1-phi)+18.5)/9, but never
+                #    below 1.0 (d<=1 is always safe).  See the manual figure
+                #    "Region of valid (d, 1-phi) combinations".
+                y     = math.log10(self.phi_fixed) if self.phi_fixed > 0.0 else 9.9e99
+                d_max = max(1.0, (y + 18.5) / 9.0)
+                if d > d_max:
+                    penalty  = (d - d_max)*LARGE
+                    param[k] = -2.0*d_max         # clamp kappa to the boundary
         elif self.Nparam==1 and self.estimate_phi==True:
             phi = param[k]
             #--- param[k] is always 1-phi. The following rarely occurs
@@ -264,14 +269,7 @@ class GGM:
                 param[k] = 1.0e-6
 
         else:
-            #--- Same kappa bound as the Nparam==1 case above. Without this,
-            #    d = -0.5*kappa is unbounded, and for d greater than about
-            #    2.75 the "danger zone" clamp target below,
-            #    pow(10, 4*d-11+safety_factor), itself exceeds 1.0 -- an
-            #    invalid value for param[k+1] (which stores 1-phi, must stay
-            #    in (0,1]) that is worse than what the clamp was meant to
-            #    prevent, and feeds z=(1-phi)^2 >> 1 into hyp2f1, where it
-            #    can return a complex (mpc) result instead of a real one.
+            #--- Bound kappa first so d = -0.5*kappa stays in [0.005, 1.5].
             kappa = param[k]
             if kappa < -3.0:
                 penalty = (3.0 - kappa)*LARGE
@@ -284,28 +282,25 @@ class GGM:
 
             d   = -0.5 * param[k]
             phi = param[k+1]
-
-            #--- Extra checks to avoid danger zone
             if phi>0.0:
                 y = math.log10(phi)
             else:
                 y = 9.9e99         # will not be used
 
-            #--- Check if log(1-phi) is below the line (2F1 is too large)
-            safety_factor = 2.0
-            if y < (4.0*d - 11.0 + safety_factor):
-                penalty = ((4.0*d-11.0+safety_factor) - y)*LARGE
-                param[k+1] = pow(10,4.0*d-11.0+safety_factor)
+            #--- PD-safe boundary (same as the Nparam==1 branch; see the manual
+            #    figure).  For d>1 the double-precision 2F1 recursion needs
+            #    log10(1-phi) >= 9d - 18.5, else the covariance turns
+            #    indefinite; clamp 1-phi up to that boundary.  d<=1.5 here (the
+            #    kappa check above returned otherwise), so 9d-18.5 <= -5 and the
+            #    clamp target stays a valid 1-phi in (0,1).
+            if d > 1.0 and y < (9.0*d - 18.5):
+                penalty = ((9.0*d - 18.5) - y)*LARGE
+                param[k+1] = pow(10.0, 9.0*d - 18.5)
 
-            #--- param[k+1] is always 1-phi. The following rarely occurs
+            #--- param[k+1] is always 1-phi. The following rarely occur
             elif phi>0.999:
                 penalty = (phi-0.999)*LARGE
                 param[k+1] = 0.999
-
-            #--- The following limit is most critical, stay away from zero!!
-            #    Another complication is that at phi=0, you have power-law and
-            #    then d_max=0.5. Thus, a jump down from 2. Allowing this is
-            #    asking for trouble. I put lower limit to 1.0e-6.
             elif phi<1.0e-6:
                 penalty = (1.0e-6-phi)*LARGE*1.0e5
                 param[k+1] = 1.0e-6
@@ -367,6 +362,18 @@ class GGM:
             phi   = noise_params[k+1]
 
         sigma /= math.pow(T,0.5*d)
+
+        #--- Warn if the estimate is limited by the numerical safe zone (the
+        #    penalty clamp was binding) rather than being a free MLE value.
+        if self.estimate_d and phi > 0.0:
+            d_safe = (math.log10(phi) + 18.5) / 9.0
+            if d > 1.0 and d_safe < 1.5 and d >= d_safe - 0.02:
+                print("WARNING: GGM spectral index is limited by the numerical "
+                      "safe zone for 1-phi={0:.2e} (d capped near {1:.3f}, "
+                      "kappa near {2:.3f}). The true optimum may be steeper; "
+                      "increase GGM_1mphi to estimate it.".format(
+                          phi, d_safe, -2.0*d_safe), file=sys.stderr)
+
         if verbose==True:
             print('sigma     = {0:7.4f} {1:s}/{2:s}^{3:.2f}'.format(sigma,
 								phys_unit,time_unit,0.5*d))

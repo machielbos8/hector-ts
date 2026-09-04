@@ -24,6 +24,7 @@
 
 from libc.string  cimport memcpy, memset
 from libc.math    cimport log as c_log
+import os
 import numpy as np
 cimport numpy as np
 
@@ -50,12 +51,13 @@ cdef extern from "fftw3.h" nogil:
 # Polynomials shorter than this on both sides use a direct O(la*lb) loop.
 DEF DIRECT_THRESH = 64
 
-# Maximum plan-index depth (FFT size = 2^i).
-# i up to 16 → FFT size 65536 → supports series up to ~80 yr (n ≤ 32768).
-# Plans 17–18 (FFT 131072 / 262144) consumed ~16 MB of L3 cache on x86 and
-# were never needed for GPS data; removing them cuts pre-allocated buffers from
-# ~21 MB to ~5 MB, keeping the working set well within typical L3 (16 MB).
-DEF N_PLANS = 17   # indices 1..16 are valid
+# Maximum plan-index depth (FFT size = 2^i), used only as a sanity ceiling.
+# Plans are created LAZILY, on first use of each size (see _ensure_plans), so a
+# short series never allocates the large-size buffers — the earlier L3-cache
+# concern that forced a low cap no longer applies.  A daily-GNSS run touches
+# only small plans; a very long / high-rate series builds the big plans once,
+# on demand.  N_PLANS is therefore just the hard upper bound.
+DEF N_PLANS = 25   # indices 1..24 valid → max series length ~2^23 (8.4 M)
 
 # Maximum workspace depth for the recursion.
 DEF MAX_DEPTH = 24
@@ -93,6 +95,7 @@ cdef class SchurGSA:
     cdef int     _ws_mul_size[MAX_DEPTH]
     cdef list    _ws_storage   # keeps numpy arrays (and thus data ptrs) alive
     cdef int     _cached_tm    # workspace is valid for this tm; -1 = uninitialised
+    cdef bytes   _wisdom_bytes # wisdom file path (bytes) for lazy re-export; None if unused
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
@@ -116,30 +119,15 @@ cdef class SchurGSA:
         self._cached_tm  = -1
 
         # Load existing wisdom so that FFTW_MEASURE reuses known-good plans.
+        # Plans/buffers are built lazily on first use (see _ensure_plans), so a
+        # short series never allocates the large-FFT buffers; nothing is planned
+        # here.
         if wisdom_path is not None:
             wp_bytes = wisdom_path.encode() if isinstance(wisdom_path, str) else wisdom_path
+            self._wisdom_bytes = wp_bytes
             fftw_import_wisdom_from_filename(wp_bytes)
-
-        # Create plans for each FFT size n = 2, 4, 8, ..., 2^18.
-        n = 2
-        for i in range(1, N_PLANS):
-            half1 = n // 2 + 1
-            self._x_ptr[i]  = <double*>      fftw_malloc(n     * sizeof(double))
-            self._xb_ptr[i] = <double*>      fftw_malloc(n     * sizeof(double))
-            self._Fa_ptr[i] = <fftw_complex*>fftw_malloc(half1 * sizeof(fftw_complex))
-            self._Fb_ptr[i] = <fftw_complex*>fftw_malloc(half1 * sizeof(fftw_complex))
-            self._Fx_ptr[i] = <fftw_complex*>fftw_malloc(half1 * sizeof(fftw_complex))
-            self._rfft_plan[i]   = fftw_plan_dft_r2c_1d(
-                n, self._x_ptr[i],  self._Fa_ptr[i], FFTW_MEASURE)
-            self._rfft_plan_b[i] = fftw_plan_dft_r2c_1d(
-                n, self._xb_ptr[i], self._Fb_ptr[i], FFTW_MEASURE)
-            self._irfft_plan[i]  = fftw_plan_dft_c2r_1d(
-                n, self._Fx_ptr[i], self._x_ptr[i],  FFTW_MEASURE)
-            n <<= 1
-
-        # Persist wisdom so subsequent processes skip FFTW_MEASURE.
-        if wisdom_path is not None:
-            fftw_export_wisdom_to_filename(wp_bytes)
+        else:
+            self._wisdom_bytes = None
 
     def __dealloc__(self):
         cdef int i
@@ -156,6 +144,53 @@ cdef class SchurGSA:
     def __init__(self, wisdom_path=None):
         pass   # all init done in __cinit__
 
+    # ── lazy FFTW plan creation ───────────────────────────────────────────────
+
+    def _ensure_plans(self, int tm):
+        """Create (once) the FFTW plans/buffers for every size the GSA multiply
+        needs at series length tm.  Called with the GIL held, before the nogil
+        recursion — FFTW planning is neither nogil-safe nor thread-safe, and a
+        short series must not pay for the large-FFT plans it never uses.
+        """
+        cdef int i_max, i, n, half1, made
+
+        # Largest plan index used by the top-level multiply for this tm
+        # (matches the n-doubling in _multiply_into: plan i has FFT size 2^i).
+        n = 1; i_max = 1
+        while n < tm:
+            n <<= 1; i_max += 1
+        if i_max > N_PLANS - 1:
+            raise ValueError(
+                f"Series length {tm + 1} exceeds the GSA ceiling "
+                f"(N_PLANS={N_PLANS}, max ~{1 << (N_PLANS - 2)} samples). "
+                f"Increase N_PLANS in _schur_gsa.pyx and rebuild.")
+
+        made = 0
+        for i in range(1, i_max + 1):
+            if self._x_ptr[i] != NULL:
+                continue                       # already built for this size
+            n = 1 << i
+            half1 = n // 2 + 1
+            self._x_ptr[i]  = <double*>      fftw_malloc(n     * sizeof(double))
+            self._xb_ptr[i] = <double*>      fftw_malloc(n     * sizeof(double))
+            self._Fa_ptr[i] = <fftw_complex*>fftw_malloc(half1 * sizeof(fftw_complex))
+            self._Fb_ptr[i] = <fftw_complex*>fftw_malloc(half1 * sizeof(fftw_complex))
+            self._Fx_ptr[i] = <fftw_complex*>fftw_malloc(half1 * sizeof(fftw_complex))
+            self._rfft_plan[i]   = fftw_plan_dft_r2c_1d(
+                n, self._x_ptr[i],  self._Fa_ptr[i], FFTW_MEASURE)
+            self._rfft_plan_b[i] = fftw_plan_dft_r2c_1d(
+                n, self._xb_ptr[i], self._Fb_ptr[i], FFTW_MEASURE)
+            self._irfft_plan[i]  = fftw_plan_dft_c2r_1d(
+                n, self._Fx_ptr[i], self._x_ptr[i],  FFTW_MEASURE)
+            made += 1
+
+        # Persist any newly measured plans atomically (temp file + rename) so a
+        # multiprocessing pool can never read a half-written wisdom file.
+        if made and self._wisdom_bytes is not None:
+            tmp = self._wisdom_bytes + b'.tmp.' + str(os.getpid()).encode()
+            fftw_export_wisdom_to_filename(tmp)
+            os.replace(tmp, self._wisdom_bytes)
+
     # ── workspace allocation ──────────────────────────────────────────────────
 
     def _allocate_workspace(self, int tm):
@@ -163,6 +198,8 @@ cdef class SchurGSA:
         cdef int tm_d, ac_size, mul_size, d
         cdef double[::1] al_v, cl_v, ar_v, cr_v, dm_v, bm_v
         cdef double[::1] mul1_v, mul2_v, pm_v, qm_v
+
+        self._ensure_plans(tm)
 
         storage = []
         d = 0

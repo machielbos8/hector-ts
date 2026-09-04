@@ -350,6 +350,7 @@ def main():
             break
     for modname, funcname, key in (
             ('test_gap_accuracy', 'run_gap_accuracy_tests', 'gaps'),
+            ('test_ggm_index', 'run_ggm_index_tests', 'ggm-index'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)

@@ -157,11 +157,17 @@ class MLE:
         """
 
         if samenoise==False:
-            #--- First, make sure noise parameters are inside range
-            penalty = self.cov.compute_penalty(param)
+            #--- Work on a copy: compute_penalty() clamps out-of-range values
+            #    in place, and `param` is the optimizer's own simplex vertex.
+            #    Mutating it corrupts Nelder-Mead (the returned value no longer
+            #    matches the queried vertex), which prevents convergence on a
+            #    flat likelihood.  Clamp the copy, evaluate there, and return
+            #    the penalty gradient; the optimizer's array stays untouched.
+            param_local = np.array(param, dtype=float)
+            penalty = self.cov.compute_penalty(param_local)
 
             #--- Compute new covariance matrix
-            t = self.cov.create_t(self.m,param)
+            t = self.cov.create_t(self.m,param_local)
         else:
             penalty = 0.0
             t = []
@@ -222,10 +228,20 @@ class MLE:
             result=minimize(self.log_likelihood, param0, method='Nelder-Mead',\
 		 		      options=options)
 
-            #--- Check results
+            #--- Check results.  If the minimiser stops without meeting the
+            #    tolerance (typically MaxIterations reached), keep the best
+            #    solution it found instead of aborting -- this matches Hector 2
+            #    (asa047), which returns its best point at its evaluation limit.
+            #    A very tight Tolerance can be below the log-likelihood's own
+            #    numerical precision (e.g. with data gaps), in which case it can
+            #    never be met however long it runs.
             if result.success==False:
-                print('Minimisation failed! - {0:s}'.format(result.message))
-                sys.exit()
+                print('WARNING: minimiser did not fully converge ({0:s}). '
+                      'Keeping the best solution found. If Tolerance is very '
+                      'tight it may be below the numerical precision of the '
+                      'log-likelihood; loosen Tolerance or lower MaxIterations '
+                      'for a faster result.'.format(result.message),
+                      file=sys.stderr)
 
             #--- store results
             self.ln_L    = -result.fun
