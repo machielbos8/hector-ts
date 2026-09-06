@@ -199,7 +199,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    removeoutliers, version 3.1.3.")
+        print("    removeoutliers, version 3.1.4.")
         print("***************************************")
 
     start_time = time.time()

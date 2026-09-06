@@ -351,6 +351,8 @@ def main():
     for modname, funcname, key in (
             ('test_gap_accuracy', 'run_gap_accuracy_tests', 'gaps'),
             ('test_ggm_index', 'run_ggm_index_tests', 'ggm-index'),
+            ('test_ggm_float', 'run_ggm_float_tests', 'ggm-float'),
+            ('test_ggm_band', 'run_ggm_band_tests', 'ggm-band'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)

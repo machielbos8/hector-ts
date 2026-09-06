@@ -33,6 +33,29 @@ except ImportError:
 #==============================================================================
 
 
+def _hyp2f1_series(a, b, c, z):
+    """ Direct Gauss series for the GGM seed 2F1(d+k, d; 1+k; z), 0<z<1.
+
+    All terms are positive (a,b,c>0), so a plain double-precision sum has no
+    cancellation; it terminates when the term underflows the sum
+    (~ 39/(1-z) terms).  Used instead of mpmath where mpmath's z->1-z
+    transformation suffers cancellation growing with m*(1-z) (moderate 1-phi
+    with a long series) and hangs or raises; the two regimes are
+    complementary (tiny 1-phi -> z~1 -> mpmath converges instantly).
+    """
+
+    term = 1.0
+    s = 1.0
+    n = 0
+    while True:
+        term *= (a + n) * (b + n) / ((c + n) * (n + 1.0)) * z
+        s_new = s + term
+        if s_new == s:
+            return s_new
+        s = s_new
+        n += 1
+
+
 class GGM:
 
     def __init__(self,d_fixed=math.nan):
@@ -185,10 +208,26 @@ class GGM:
                 b = d
                 a = d   + float(k)
                 c = 1.0 + float(k)
-                _2F1[m-1]= hyp2f1(a,b, c, z)
-                a -= 1.0
-                c -= 1.0
-                _2F1[m-2]= hyp2f1(a,b, c, z)
+                if z <= 0.8 or m*(1.0-z) >= 100.0:
+                    _2F1[m-1] = _hyp2f1_series(a, b, c, z)
+                    a -= 1.0
+                    c -= 1.0
+                    _2F1[m-2] = _hyp2f1_series(a, b, c, z)
+                else:
+                    try:
+                        _2F1[m-1] = hyp2f1(a,b, c, z)
+                        a -= 1.0
+                        c -= 1.0
+                        _2F1[m-2] = hyp2f1(a,b, c, z)
+                    except ValueError:
+                        #--- mpmath gave up: the series always converges,
+                        #    just more slowly here.
+                        a = d   + float(k)
+                        c = 1.0 + float(k)
+                        _2F1[m-1] = _hyp2f1_series(a, b, c, z)
+                        a -= 1.0
+                        c -= 1.0
+                        _2F1[m-2] = _hyp2f1_series(a, b, c, z)
 
                 Fp1 = _2F1[m-1]
                 F   = _2F1[m-2]
