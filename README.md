@@ -7,13 +7,18 @@ noise and combinations thereof).
 
 ## Quick start
 
+Open a terminal (command line) and enter the following two commands, one
+after the other:
+
 ```bash
 pip install hector-ts
-hector-examples          # creates ./hector-examples/ with examples + manual PDF
+hector-examples
 ```
 
-`hector-examples` copies eight worked examples and the PDF user manual into a
-directory of your choice.  Open `hector_manual_v3.1.pdf` first — it explains
+The first command installs Hector; the second copies eight worked examples
+and the PDF user manual into a new `hector-examples` directory in your
+current location (give a different name as argument if you prefer, e.g.
+`hector-examples my_dir`).  Open `hector_manual_v3.1.pdf` first — it explains
 the workflow, all control-file parameters, and walks through every example
 step by step.  The examples are self-contained: each has its own data and
 control files ready to run.
