@@ -23,22 +23,56 @@ import sys
 import math
 from hector.control import Control
 from hector.observations import Observations
+from hector.modified_std import modified_std_value
 
 #==============================================================================
 # Subroutines
 #==============================================================================
 
 
+def _covariance_row(m, kappa):
+    """ First row of the unit-driving power-law Toeplitz covariance
+    (Bos et al. 2008, Eq. 7).  Shared by create_t and show_results.
+
+    Args:
+        m (int)       : number of samples
+        kappa (float) : spectral index (> -1, enforced by the penalty)
+
+    Returns:
+        t (row (m,1)) : first row of the Toeplitz covariance
+    """
+
+    t = np.zeros(m)
+    t[0] = math.gamma(1.0+kappa)/pow(math.gamma(1+0.5*kappa),2.0)
+    for i in range(1,m):
+        t[i] = (i - 0.5*kappa - 1.0)/(i + 0.5*kappa) * t[i-1]
+    return t
+
+
 class Powerlaw:
 
     def get_Nparam(self):
         """ Return the number of parameters in Power-Law noise model
-        
+
         Returns:
             self.Nparam (int) : total number of parameters === 1 - kappa
         """
 
         return 1
+
+
+
+    def get_param0(self):
+        """Return a sensible starting value for kappa.
+
+        Without this, the generic fallback starts Nelder-Mead at kappa=+0.1
+        (blue noise); on red-noise data the optimizer then drops the
+        power-law fraction to zero before kappa can cross to negative
+        values, silently returning pure white noise with far too small
+        trend uncertainties.  Starting at flicker (kappa=-1), like GGM,
+        avoids that local minimum."""
+
+        return [-1.0]
 
 
 
@@ -55,21 +89,11 @@ class Powerlaw:
             k_new (int)   : shifted index in param array
         """
 
-        #--- Constant
-        EPS = 1.0e-6
-
         #--- Parse param
         kappa = param[k]
         k_new = k+1   # increase k for next model
 
-        #--- Create first row vector of Covariance matrix
-        t = np.zeros(m)
-
-        t[0] = math.gamma(1.0+kappa)/pow(math.gamma(1+0.5*kappa),2.0) 
-        for i in range(1,m):
-            t[i] = (i - 0.5*kappa - 1.0)/(i + 0.5*kappa) * t[i-1]
-
-        return t, k_new 
+        return _covariance_row(m, kappa), k_new
 
 
 
@@ -134,16 +158,30 @@ class Powerlaw:
 
         kappa = noise_params[k]
         d     = -0.5*kappa
+
+        #--- Modified standard deviation (Gobron et al. 2021, Eq. 5): the
+        #    expected sample std of this noise component over the reference
+        #    span, in the physical unit -- comparable across stations even
+        #    when kappa differs.  Needs the UNSCALED per-sample sigma.
+        sigma_mod, ref_span = modified_std_value(sigma,
+                                       lambda m: _covariance_row(m, kappa))
+
         sigma /= math.pow(T,0.5*d)
 
-        if verbose==True: 
+        if verbose==True:
             print('sigma     = {0:7.4f} {1:s}/{2:s}^{3:.2f}'.\
 						format(sigma,phys_unit,time_unit,0.5*d))
+            if not math.isnan(sigma_mod):
+                print('mod. std  = {0:7.4f} {1:s} (over {2:g} yr)'.format(
+						      sigma_mod,phys_unit,ref_span))
             print('d         = {0:7.4f}'.format(d))
             print('kappa     = {0:7.4f}\n'.format(kappa))
 
         output_single['sigma'] = sigma
         output_single['d'] = d
         output_single['kappa'] = kappa
+        if not math.isnan(sigma_mod):
+            output_single['modified_std']   = sigma_mod
+            output_single['reference_span'] = ref_span
 
-        return k+1 
+        return k+1

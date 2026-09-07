@@ -353,6 +353,11 @@ def main():
             ('test_ggm_index', 'run_ggm_index_tests', 'ggm-index'),
             ('test_ggm_float', 'run_ggm_float_tests', 'ggm-float'),
             ('test_ggm_band', 'run_ggm_band_tests', 'ggm-band'),
+            ('test_modified_std', 'run_modified_std_tests', 'mod-std'),
+            ('test_spectrum', 'run_spectrum_tests', 'spectrum'),
+            ('test_predicttrenderror', 'run_predicttrenderror_tests', 'trend-err'),
+            ('test_noise_zoo', 'run_noise_zoo_tests', 'noise-zoo'),
+            ('test_ggm_fallback', 'run_ggm_fallback_tests', 'ggm-py'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)

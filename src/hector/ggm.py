@@ -21,6 +21,7 @@ import math
 from mpmath import *
 from hector.control import Control
 from hector.observations import Observations
+from hector.modified_std import modified_std_value
 
 try:
     from hector._ggm import create_t_inner as _ggm_create_t_inner
@@ -54,6 +55,117 @@ def _hyp2f1_series(a, b, c, z):
             return s_new
         s = s_new
         n += 1
+
+
+def _covariance_row(m, d, phi):
+    """ First row of the unit-driving GGM Toeplitz covariance.
+
+    Shared by create_t (the likelihood path) and show_results (the modified
+    standard deviation, which needs the row at the reference length).
+
+    Args:
+        m (int)     : number of samples
+        d (float)   : fractional difference parameter (d = -0.5*kappa)
+        phi (float) : GGM_1mphi, stored as 1-phi
+
+    Returns:
+        t (row (m,1)) : first row of the Toeplitz covariance
+    """
+
+    #--- Constant
+    EPS = 1.0e-12
+
+    if _USE_CYTHON_GGM:
+        return _ggm_create_t_inner(m, d, phi)
+
+    #--- Create first row vector of Covariance matrix
+    t = np.zeros(m)
+
+    #--- Create array with hypergeometric 2F1 values
+    _2F1 = np.zeros(m)
+
+    #--- for phi=0, we have pure power-law noise
+    if fabs(phi)<EPS:
+        #--- compute power-law noise
+        kappa = -2.0*d
+        t[0] = math.gamma(1.0+kappa)/pow(math.gamma(1+0.5*kappa),2.0)
+        for i in range(1,m):
+            t[i] = (i - 0.5*kappa - 1.0)/(i + 0.5*kappa) * t[i-1]
+
+        #--- Done: the gamma_x construction below is for the GGM case only
+        #    (falling through would overwrite t with the all-zero _2F1 --
+        #    latent bug in the Python fallback until 2026-09, the Cython
+        #    path always returned early here).
+        return t
+
+    #--- Not pure power-law noise
+    else:
+        #--- For d=0, _2F1 is always 1.0
+        if fabs(d)<EPS:
+            for i in range(0,m):
+                _2F1[i] = 1.0
+        else:
+            #--- Since phi is actually stored as 1-phi, I here need to
+            #    put 1- (1-phi) = phi. DONT DELETE THIS COMMENT!!!
+            z = math.pow(1-phi,2.0)
+            k = m-1
+            b = d
+            a = d   + float(k)
+            c = 1.0 + float(k)
+            if z <= 0.8 or m*(1.0-z) >= 100.0:
+                _2F1[m-1] = _hyp2f1_series(a, b, c, z)
+                a -= 1.0
+                c -= 1.0
+                _2F1[m-2] = _hyp2f1_series(a, b, c, z)
+            else:
+                try:
+                    _2F1[m-1] = hyp2f1(a,b, c, z)
+                    a -= 1.0
+                    c -= 1.0
+                    _2F1[m-2] = hyp2f1(a,b, c, z)
+                except ValueError:
+                    #--- mpmath gave up: the series always converges,
+                    #    just more slowly here.
+                    a = d   + float(k)
+                    c = 1.0 + float(k)
+                    _2F1[m-1] = _hyp2f1_series(a, b, c, z)
+                    a -= 1.0
+                    c -= 1.0
+                    _2F1[m-2] = _hyp2f1_series(a, b, c, z)
+
+            Fp1 = _2F1[m-1]
+            F   = _2F1[m-2]
+            for i in range(m-3,-1,-1):
+                _2F1[i] = _backward_row(a,b,c,z,F,Fp1)
+                Fm1 = _2F1[i]
+
+                #--- prepare next round
+                a  -= 1.0
+                c  -= 1.0
+                Fp1 = F
+                F   = Fm1
+
+    #--- finally, construct gamma_x
+    scale = 1.0;
+    for i in range(0,m):
+        t[i]   = scale*_2F1[i]
+        scale *= (d+float(i))*(1.0-phi)/(float(i)+1.0)
+        if math.isnan(t[i]):
+            print("Trouble in paradise!")
+            print("i={0:d}, d={1:f}, 1-phi={2:e}".format(i,d,phi))
+            sys.exit()
+
+    return t
+
+
+def _backward_row(a,b,c,z,F,Fp1):
+    """ Backward recursion: 2F1(a-1,b;c-1;z) from F=2F1(a,b;c;z) and
+    Fp1=2F1(a+1,b;c+1;z).  Module-level twin of GGM.backward for
+    _covariance_row."""
+
+    return ((1.0-c+(b-a)*z)*F + (a*(c-b)*z)*Fp1/c)/(1.0-c)
+
+
 
 
 class GGM:
@@ -115,61 +227,63 @@ class GGM:
         return p0
 
 
-    def backward(self,a,b,c,z,F,Fp1):
-        """ Compute backward recursion
+    def _extract_params(self,k,param):
+        """ Read this model's parameters from the parameter array.
+
+        Honours which of d and 1-phi are fixed.  Shared by create_t and
+        show_results so the four Nparam branches exist only once (the
+        penalty keeps its own logic: it clamps rather than reads).
 
         Args:
-            a,b,c,z (double) : Hypergeometric function 2F1(a,b;c;z)
-            Fp1 (double)     : 2F1(a+1,b;c+1;z)
+            k (int) : index of param
+            param (array float) : fractions + noise model parameters
 
         Returns:
-            2F1(a-1,b;c-1;z)
+            d (float)     : fractional difference parameter
+            kappa (float) : spectral index (-2d)
+            phi (float)   : 1-phi
+            k_new (int)   : shifted index in param array
         """
 
-        return ((1.0-c+(b-a)*z)*F + (a*(c-b)*z)*Fp1/c)/(1.0-c)
+        if self.Nparam==0:
+            d     = self.d_fixed
+            phi   = self.phi_fixed
+            k_new = k
+        elif self.Nparam==1 and self.estimate_d==True:
+            d     = -0.5*param[k]
+            phi   = self.phi_fixed
+            k_new = k+1   # increase k for next model
+        elif self.Nparam==1 and self.estimate_phi==True:
+            d     = self.d_fixed
+            #--- Avoid dissaster
+            phi   = max(param[k], 1.0e-06)
+            k_new = k+1   # increase k for next model
+        else:
+            d     = -0.5*param[k+0]
+            phi   = param[k+1]
+            k_new = k+2   # increase k for next model
+
+        return d, -2.0*d, phi, k_new
 
 
-    
+
     def create_t(self,m,k,param):
         """ Create first row of covariance matrix of power-law noise
-    
+
         Args:
             m (int) : length of time series
             k (int) : index of param
             param (array float) : spectral index
-        
+
         Returns:
-            t (row (m,1)) : first row Toeplitz covariance matrix 
+            t (row (m,1)) : first row Toeplitz covariance matrix
             k_new (int)   : shifted index in param array
         """
 
         #--- Constant
         EPS = 1.0e-12
 
-        #--- extract parameters to readable variables
-        if self.Nparam==0:
-            d     = self.d_fixed
-            kappa = -2.0*d
-            phi   = self.phi_fixed
-            k_new = k
-        elif self.Nparam==1 and self.estimate_d==True:
-            kappa = param[k]
-            d     = -0.5*kappa
-            phi   = self.phi_fixed
-            k_new = k+1   # increase k for next model
-        elif self.Nparam==1 and self.estimate_phi==True:
-            d     = self.d_fixed
-            kappa = -2.0*d
-            phi   = param[k]
-            #--- Avoid dissaster
-            if phi<1.0e-06:
-                phi=1.0e-06
-            k_new = k+1   # increase k for next model
-        else:
-            kappa = param[k+0]
-            d     = -0.5*kappa
-            phi   = param[k+1]
-            k_new = k+2   # increase k for next model
+        d, kappa, phi, k_new = self._extract_params(k,param)
 
         #--- Sanity check for non-stationary power-law
         if fabs(phi) < EPS and d > 0.5:
@@ -177,81 +291,7 @@ class GGM:
             print("1-phi: {0:f}".format(phi))
             sys.exit()
 
-        if _USE_CYTHON_GGM:
-            t = _ggm_create_t_inner(m, d, phi)
-            return t, k_new
-
-        #--- Create first row vector of Covariance matrix
-        t = np.zeros(m)
-
-        #--- Create array with hypergeometric 2F1 values
-        _2F1 = np.zeros(m)
-
-        #--- for phi=0, we have pure power-law noise
-        if fabs(phi)<EPS:
-            #--- compute power-law noise
-            t[0] = math.gamma(1.0+kappa)/pow(math.gamma(1+0.5*kappa),2.0)
-            for i in range(1,m):
-                t[i] = (i - 0.5*kappa - 1.0)/(i + 0.5*kappa) * t[i-1]
-
-        #--- Not pure power-law noise
-        else:
-            #--- For d=0, _2F1 is always 1.0
-            if fabs(d)<EPS:
-                for i in range(0,m):
-                    _2F1[i] = 1.0
-            else:
-                #--- Since phi is actually stored as 1-phi, I here need to
-                #    put 1- (1-phi) = phi. DONT DELETE THIS COMMENT!!!
-                z = math.pow(1-phi,2.0)
-                k = m-1
-                b = d
-                a = d   + float(k)
-                c = 1.0 + float(k)
-                if z <= 0.8 or m*(1.0-z) >= 100.0:
-                    _2F1[m-1] = _hyp2f1_series(a, b, c, z)
-                    a -= 1.0
-                    c -= 1.0
-                    _2F1[m-2] = _hyp2f1_series(a, b, c, z)
-                else:
-                    try:
-                        _2F1[m-1] = hyp2f1(a,b, c, z)
-                        a -= 1.0
-                        c -= 1.0
-                        _2F1[m-2] = hyp2f1(a,b, c, z)
-                    except ValueError:
-                        #--- mpmath gave up: the series always converges,
-                        #    just more slowly here.
-                        a = d   + float(k)
-                        c = 1.0 + float(k)
-                        _2F1[m-1] = _hyp2f1_series(a, b, c, z)
-                        a -= 1.0
-                        c -= 1.0
-                        _2F1[m-2] = _hyp2f1_series(a, b, c, z)
-
-                Fp1 = _2F1[m-1]
-                F   = _2F1[m-2]
-                for i in range(m-3,-1,-1):
-                    _2F1[i] = self.backward(a,b,c,z,F,Fp1)
-                    Fm1 = _2F1[i]
-
-                    #--- prepare next round
-                    a  -= 1.0
-                    c  -= 1.0
-                    Fp1 = F
-                    F   = Fm1
-
-        #--- finally, construct gamma_x
-        scale = 1.0;
-        for i in range(0,m):
-            t[i]   = scale*_2F1[i]
-            scale *= (d+float(i))*(1.0-phi)/(float(i)+1.0)
-            if math.isnan(t[i]):
-                print("Trouble in paradise!")
-                print("i={0:d}, d={1:f}, 1-phi={2:e}".format(i,d,phi))
-                sys.exit()
-
-        return t, k_new
+        return _covariance_row(m, d, phi), k_new
 
 
 
@@ -383,22 +423,14 @@ class GGM:
             print('unknown ts_format {0:s}'.format(observations.ts_format))
             sys.exit()
 
-        if self.Nparam==0:
-            d = self.d_fixed
-            kappa = -2.0*d
-            phi = self.phi_fixed
-        elif self.Nparam==1 and self.estimate_phi==True:
-            d = self.d_fixed
-            kappa = -2.0*d
-            phi = noise_params[k]
-        elif self.Nparam==1 and self.estimate_d==True:
-            kappa = noise_params[k]
-            d     = -0.5*kappa
-            phi = self.phi_fixed
-        else:
-            kappa = noise_params[k]
-            d     = -0.5*kappa
-            phi   = noise_params[k+1]
+        d, kappa, phi, _ = self._extract_params(k,noise_params)
+
+        #--- Modified standard deviation (Gobron et al. 2021, Eq. 5): the
+        #    expected sample std of this noise component over the reference
+        #    span, in the physical unit -- comparable across stations even
+        #    when kappa differs.  Needs the UNSCALED per-sample sigma.
+        sigma_mod, ref_span = modified_std_value(sigma,
+                                       lambda m: _covariance_row(m, d, phi))
 
         sigma /= math.pow(T,0.5*d)
 
@@ -416,6 +448,9 @@ class GGM:
         if verbose==True:
             print('sigma     = {0:7.4f} {1:s}/{2:s}^{3:.2f}'.format(sigma,
 								phys_unit,time_unit,0.5*d))
+            if not math.isnan(sigma_mod):
+                print('mod. std  = {0:7.4f} {1:s} (over {2:g} yr)'.format(
+						      sigma_mod,phys_unit,ref_span))
 
             if self.Nparam==0:
                 print('d         = {0:7.4f} (fixed)'.format(d))
@@ -434,5 +469,8 @@ class GGM:
         output_single['kappa'] = kappa
         output_single['1-phi'] = phi
         output_single['sigma'] = sigma
+        if not math.isnan(sigma_mod):
+            output_single['modified_std']   = sigma_mod
+            output_single['reference_span'] = ref_span
 
         return k+self.Nparam

@@ -191,6 +191,115 @@ def compute_G_Matern(f,d,lamba):
     return 2.0*pow(lamba,2.0*alpha-1.0)/c_alpha * \
                                 1.0/pow(pow(f,2.0) + pow(lamba,2.0),alpha)
 
+def _read_noisemodels_json(json_file):
+    """ Read the NoiseModel block from an estimatetrend JSON file.
+
+    Args:
+        json_file (string) : name of JSON file written by estimatetrend
+
+    Returns:
+        noisemodels (dict) : the 'NoiseModel' block
+    """
+
+    if os.path.exists(json_file)==False:
+        print('There is no {0:s}'.format(json_file))
+        sys.exit()
+    try:
+        with open(json_file,'r') as fp_dummy:
+            results = json.load(fp_dummy)
+    except:
+        print('Could not read {0:s}'.format(json_file))
+        sys.exit()
+
+    return results['NoiseModel']
+
+
+
+def _model_psd_entries(noisemodels, T, fs):
+    """ Turn the JSON NoiseModel block into (label, psd_function) pairs.
+
+    This is the single dispatch table for the noise models: the label shown
+    in the plot legend and a function returning the model's one-sided PSD
+    contribution at a real frequency f (Hz), correctly scaled.  main() only
+    sums the functions -- adding a noise model here is the only change needed.
+
+    Args:
+        noisemodels (dict) : 'NoiseModel' block of the estimatetrend JSON
+        T (float)          : sampling period in yr (or time units for gen)
+        fs (float)         : sampling frequency in Hz
+
+    Returns:
+        entries (list) : [(label, psd_fn), ...] in JSON order
+    """
+
+    tpi = 2.0*math.pi
+    entries = []
+    for name, p in noisemodels.items():
+        if name=='White':
+            s2 = math.pow(p['sigma'],2.0)/fs
+            entries.append(('WN',
+                lambda f,s2=s2: s2*compute_G_White(tpi*f/fs)))
+        elif name=='Powerlaw':
+            d = -p['kappa']/2.0
+            s2 = math.pow(p['sigma']*math.pow(T,0.5*d),2.0)/fs
+            entries.append(('PL',
+                lambda f,s2=s2,d=d: s2*compute_G_Powerlaw(tpi*f/fs,d)))
+        elif name=='FlickerGGM':
+            s2 = math.pow(p['sigma']*math.pow(T,0.5*0.5),2.0)/fs
+            entries.append(('FN',
+                lambda f,s2=s2: s2*compute_G_Powerlaw(tpi*f/fs,0.5)))
+        elif name=='RandomWalkGGM':
+            s2 = math.pow(p['sigma']*math.pow(T,0.5*1.0),2.0)/fs
+            entries.append(('RW',
+                lambda f,s2=s2: s2*compute_G_Powerlaw(tpi*f/fs,1.0)))
+        elif name=='GGM':
+            d = -p['kappa']/2.0
+            phi = p['1-phi']
+            sigma = p['sigma']*math.pow(T,0.5*d)
+            print('sigma_eta = {0:f}'.format(sigma))
+            s2 = math.pow(sigma,2.0)/fs
+            entries.append(('PL' if phi<1.0e-5 else 'GGM',
+                lambda f,s2=s2,d=d,phi=phi: s2*compute_G_GGM(tpi*f/fs,d,phi)))
+        elif name=='AR1':
+            s2 = math.pow(p['sigma'],2.0)/fs
+            phi = p['phi']
+            entries.append(('AR1',
+                lambda f,s2=s2,phi=phi: s2*compute_G_AR1(tpi*f/fs,phi)))
+        elif name=='VaryingAnnual':
+            s2 = math.pow(p['sigma'],2.0)/fs
+            phi = p['phi']
+            entries.append(('VA',
+                lambda f,s2=s2,phi=phi: s2*compute_G_VA(f,fs,phi)))
+        elif name=='Matern':
+            d = -p['kappa']/2.0
+            s2 = math.pow(p['sigma'],2.0)/fs
+            lamba = p['lambda']
+            entries.append(('MT',
+                lambda f,s2=s2,d=d,lamba=lamba:
+                                    s2*compute_G_Matern(tpi*f/fs,d,lamba)))
+        elif name in ('ARMA','ARFIMA'):
+            s2 = math.pow(p['sigma'],2.0)/fs
+            n_ar = sum(1 for kk in p if kk.startswith('AR'))
+            n_ma = sum(1 for kk in p if kk.startswith('MA'))
+            AR = [p['AR{:d}'.format(i+1)] for i in range(n_ar)]
+            MA = [p['MA{:d}'.format(i+1)] for i in range(n_ma)]
+            if name=='ARMA':
+                entries.append(('ARMA',
+                    lambda f,s2=s2,AR=AR,MA=MA:
+                                    s2*compute_G_ARMA(tpi*f/fs,AR,MA)))
+            else:
+                d = p['d']
+                entries.append(('ARFIMA',
+                    lambda f,s2=s2,AR=AR,d=d,MA=MA:
+                                    s2*compute_G_ARFIMA(tpi*f/fs,AR,d,MA)))
+        else:
+            print('Unknown noisemodel: {0:s}'.format(name))
+            sys.exit()
+
+    return entries
+
+
+
 #===============================================================================
 # Main program
 #===============================================================================
@@ -252,7 +361,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    estimatespectrum, version 3.1.4.")
+        print("    estimatespectrum, version 3.1.5.")
         print("***************************************")
 
     #--- Get Classes
@@ -269,97 +378,13 @@ def main():
         T  = DeltaT        # just T 
 
 
-    #--- Which noise models 
+    #--- Which noise models
+    entries = []
+    noisemodel_names = ''
     if plot_noisemodels==True:
-        #--- parse output
-        if os.path.exists(json_file)==False:
-            print('There is no {0:s}'.format(json_file))
-            sys.exit()
-        try:
-            fp_dummy = open(json_file,'r')
-            results = json.load(fp_dummy)
-            fp_dummy.close()
-        except:
-            print('Could not read {0:s}'.format(json_file))
-            sys.exit()
-
-        #--- Get list of noise model names
-        noisemodels = results['NoiseModel']
-
-        #--- extract parameter values
-        if 'White' in noisemodels:
-            sigma_w = noisemodels['White']['sigma']
-        if 'Powerlaw' in noisemodels:
-            sigma_pl = noisemodels['Powerlaw']['sigma']
-            kappa = noisemodels['Powerlaw']['kappa']
-            d_pl = -kappa/2.0
-            sigma_pl *= math.pow(T,0.5*d_pl)
-        if 'FlickerGGM' in noisemodels:
-            sigma_fn = noisemodels['FlickerGGM']['sigma']
-            sigma_fn *= math.pow(T,0.5*0.5)
-        if 'RandomWalkGGM' in noisemodels:
-            sigma_rw = noisemodels['RandomWalkGGM']['sigma']
-            sigma_rw *= math.pow(T,0.5*1.0)
-        if 'GGM' in noisemodels:
-            sigma_ggm = noisemodels['GGM']['sigma']
-            kappa = noisemodels['GGM']['kappa']
-            d_ggm = -kappa/2.0
-            phi_ggm = noisemodels['GGM']['1-phi']
-            sigma_ggm *= math.pow(T,0.5*d_ggm)
-            print('sigma_eta = {0:f}'.format(sigma_ggm))
-        if 'VaryingAnnual' in noisemodels:
-            sigma_va = noisemodels['VaryingAnnual']['sigma']
-            phi_va = noisemodels['VaryingAnnual']['phi']
-        if 'AR1' in noisemodels:
-            sigma_ar1 = noisemodels['AR1']['sigma']
-            phi_ar1 = noisemodels['AR1']['phi']
-        if 'Matern' in noisemodels:
-            sigma_mt = noisemodels['Matern']['sigma']
-            kappa = noisemodels['Matern']['kappa']
-            d_mt = -kappa/2.0
-            lamba_mt = noisemodels['Matern']['lambda']
-        if 'ARMA' in noisemodels:
-            sigma_arma = noisemodels['ARMA']['sigma']
-            p_arma = sum(1 for k in noisemodels['ARMA'] if k.startswith('AR'))
-            q_arma = sum(1 for k in noisemodels['ARMA'] if k.startswith('MA'))
-            AR_arma = [noisemodels['ARMA']['AR{:d}'.format(i+1)] for i in range(p_arma)]
-            MA_arma = [noisemodels['ARMA']['MA{:d}'.format(i+1)] for i in range(q_arma)]
-        if 'ARFIMA' in noisemodels:
-            sigma_arfima = noisemodels['ARFIMA']['sigma']
-            p_arfima = sum(1 for k in noisemodels['ARFIMA'] if k.startswith('AR'))
-            q_arfima = sum(1 for k in noisemodels['ARFIMA'] if k.startswith('MA'))
-            AR_arfima = [noisemodels['ARFIMA']['AR{:d}'.format(i+1)] for i in range(p_arfima)]
-            MA_arfima = [noisemodels['ARFIMA']['MA{:d}'.format(i+1)] for i in range(q_arfima)]
-            d_arfima  = noisemodels['ARFIMA']['d']
-   
-        #--- create string with noise model names
-        noisemodel_names = ''
-        for noisemodel in list(noisemodels):
-            if len(noisemodel_names)>0:
-               noisemodel_names += ' + '
-            if noisemodel=='White':
-                noisemodel_names += 'WN'
-            elif noisemodel=='Powerlaw':
-                noisemodel_names += 'PL'
-            elif noisemodel=='GGM':
-                if phi_ggm<1.0e-5:
-                    noisemodel_names += 'PL'
-                else:
-                    noisemodel_names += 'GGM'
-            elif noisemodel=='FlickerGGM':
-                noisemodel_names += 'FN'
-            elif noisemodel=='RandomwalkGGM':
-                noisemodel_names += 'RW'
-            elif noisemodel=='VaryingAnnual':
-                noisemodel_names += 'VA'
-            elif noisemodel=='AR1':
-                noisemodel_names += 'AR1'
-            elif noisemodel=='Matern':
-                noisemodel_names += 'MT'
-            elif noisemodel=='ARMA':
-                noisemodel_names += 'ARMA'
-            elif noisemodel=='ARFIMA':
-                noisemodel_names += 'ARFIMA'
+        noisemodels = _read_noisemodels_json(json_file)
+        entries = _model_psd_entries(noisemodels, T, fs)
+        noisemodel_names = ' + '.join(label for label,_ in entries)
 
     #--- Get data
     if 'mod' in observations.data.columns:
@@ -403,42 +428,8 @@ def main():
         for i in range(0,N):
             s    = i/float(N);
             fm[i] = math.exp((1.0-s)*freq0 + s*freq1)
-            for noisemodel in noisemodels:
-                if noisemodel=='White':
-                    scale = math.pow(sigma_w,2.0)/fs #--- no negative f (2x)
-                    G[i] += scale*compute_G_White(tpi*fm[i]/fs)
-                elif noisemodel=='Powerlaw':
-                    scale = math.pow(sigma_pl,2.0)/fs 
-                    G[i] += scale*compute_G_Powerlaw(tpi*fm[i]/fs,d_pl)
-                elif noisemodel=='FlickerGGM':
-                    scale = math.pow(sigma_fn,2.0)/fs 
-                    G[i] += scale*compute_G_Powerlaw(tpi*fm[i]/fs,0.5)
-                elif noisemodel=='RandomWalkGGM':
-                    scale = math.pow(sigma_rw,2.0)/fs
-                    G[i] += scale*compute_G_Powerlaw(tpi*fm[i]/fs,1.0)
-                elif noisemodel=='GGM':
-                    scale = math.pow(sigma_ggm,2.0)/fs
-                    G[i] += scale*compute_G_GGM(tpi*fm[i]/fs,d_ggm,phi_ggm)
-                elif noisemodel=='AR1':
-                    scale = math.pow(sigma_ar1,2.0)/fs
-                    G[i] += scale*compute_G_AR1(tpi*fm[i]/fs,phi_ar1)
-                elif noisemodel=='VaryingAnnual':
-                    scale = math.pow(sigma_va,2.0)/fs
-                    G[i] += scale*compute_G_VA(fm[i],fs,phi_va)
-                elif noisemodel=='Matern':
-                    scale = math.pow(sigma_mt,2.0)/fs
-                    G[i] += scale*compute_G_Matern(tpi*fm[i]/fs,d_mt,lamba_mt)
-                elif noisemodel=='ARMA':
-                    scale = math.pow(sigma_arma,2.0)/fs
-                    G[i] += scale*compute_G_ARMA(tpi*fm[i]/fs,AR_arma,MA_arma)
-                elif noisemodel=='ARFIMA':
-                    scale = math.pow(sigma_arfima,2.0)/fs
-                    G[i] += scale*compute_G_ARFIMA(tpi*fm[i]/fs,AR_arfima,
-                                                    d_arfima,MA_arfima)
-                else:
-                    print('Unknown noisemodel: {0:s}'.format(noisemodel))
-                    sys.exit()
- 
+            G[i]  = sum(psd_fn(fm[i]) for _,psd_fn in entries)
+
     if graph==True or save_eps==True or save_png==True:
         fig = plt.figure(figsize=(5, 4), dpi=150)
         plt.loglog(f, Pxx_den, label='observed')

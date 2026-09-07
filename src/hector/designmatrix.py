@@ -48,6 +48,61 @@ class DesignMatrix(metaclass=SingletonMeta):
         #--- small number
         EPS = 1.0e-4
     
+        self._read_periods(control)
+
+        #--- For displaying in output, get Physical and Time unit
+        try:
+            self.phys_unit = control.params['PhysicalUnit']
+        except:
+            self.phys_unit = 'unkown'
+        try:
+            self.time_unit = control.params['TimeUnit']
+        except:
+            self.time_unit = 'unkown'
+
+        #--- Degree Polynomial
+        try:
+            degree_polynomial = control.params["DegreePolynomial"]
+        except:
+            print("No Polynomial degree set, using offset + linear trend")
+            degree_polynomial = 1;
+        if (degree_polynomial<0 or degree_polynomial>12):
+            print("Only polynomial degrees between 0 and 12 are allowed")
+            sys.exit()
+      
+        self._read_component_counts(control)
+        self._read_multivariate(control)
+
+        self.n_degrees = degree_polynomial+1
+        
+        #--- Number of observations
+        m = len(self.ts.data.index)
+        if m==0:
+            print('Zero length of time series!? am crashing...')
+            sys.exit()
+       
+        #--- Reference epoch for the nominal bias (t=th column in H)
+        try:
+            reference_epoch = control.params["ReferenceEpoch"]
+        except KeyError:
+            reference_epoch = None
+        if reference_epoch is None:
+            #--- No ReferenceEpoch given: use middle of time-series
+            self.th = 0.5*(self.ts.data.index[0] + self.ts.data.index[-1])
+        else:
+            if not isinstance(reference_epoch,list) or len(reference_epoch)!=3:
+                print('Correct usage: ReferenceEpoch year month day')
+                sys.exit()
+            [year,month,day] = reference_epoch
+            self.th = compute_mjd(year,month,day,0,0,0.0)
+ 
+        self._build_H(EPS)
+
+
+    def _read_periods(self,control):
+        """ Read the periodic-signal periods (seasonal keywords plus
+        the periodicsignals list) into self.periods / self.n_periods."""
+
         #--- Legacy stuff: 
         self.periods = []
         try:
@@ -77,28 +132,12 @@ class DesignMatrix(metaclass=SingletonMeta):
             for i in range(0,len(periodic_signals)):
                 self.periods.append(periodic_signals[i])
 
-        #--- For displaying in output, get Physical and Time unit
-        try:
-            self.phys_unit = control.params['PhysicalUnit']
-        except:
-            self.phys_unit = 'unkown'
-        try:
-            self.time_unit = control.params['TimeUnit']
-        except:
-            self.time_unit = 'unkown'
-
-        #--- Degree Polynomial
-        try:
-            degree_polynomial = control.params["DegreePolynomial"]
-        except:
-            print("No Polynomial degree set, using offset + linear trend")
-            degree_polynomial = 1;
-        if (degree_polynomial<0 or degree_polynomial>12):
-            print("Only polynomial degrees between 0 and 12 are allowed")
-            sys.exit()
-      
-        #--- length of arrays          
         self.n_periods = len(self.periods)
+
+    def _read_component_counts(self,control):
+        """ Count the offset, post-seismic, slow-slip-event and
+        multi-trend break columns requested by the control file."""
+
         try:
             estimate_offsets = control.params["estimateoffsets"]
         except:
@@ -133,6 +172,11 @@ class DesignMatrix(metaclass=SingletonMeta):
             self.n_breaks = len(self.ts.breaks)
         else:
             self.n_breaks = 0
+
+
+    def _read_multivariate(self,control):
+        """ Read the multivariate (geophysical-signal) channels from a
+        mom or ncf file into self._geo_t / self._geo_signals."""
 
         self.n_channels = 0
         self.channel_names = []
@@ -201,33 +245,17 @@ class DesignMatrix(metaclass=SingletonMeta):
                 self.channel_names = [fpath.stem]
 
 
-        self.n_degrees = degree_polynomial+1
-        
-        #--- Number of observations
+
+    def _build_H(self,EPS):
+        """ Assemble the design matrix H from the counted components:
+        polynomial, periodic, offsets, post-seismic exp/log, sse-tanh,
+        multi-trend ramps and interpolated geophysical signals."""
+
         m = len(self.ts.data.index)
-        if m==0:
-            print('Zero length of time series!? am crashing...')
-            sys.exit()
-       
-        #--- Reference epoch for the nominal bias (t=th column in H)
-        try:
-            reference_epoch = control.params["ReferenceEpoch"]
-        except KeyError:
-            reference_epoch = None
-        if reference_epoch is None:
-            #--- No ReferenceEpoch given: use middle of time-series
-            self.th = 0.5*(self.ts.data.index[0] + self.ts.data.index[-1])
-        else:
-            if not isinstance(reference_epoch,list) or len(reference_epoch)!=3:
-                print('Correct usage: ReferenceEpoch year month day')
-                sys.exit()
-            [year,month,day] = reference_epoch
-            self.th = compute_mjd(year,month,day,0,0,0.0)
- 
         n = self.n_degrees + 2*self.n_periods + self.n_offsets + \
                 self.n_postseismicexp + self.n_postseismiclog + self.n_ssetanh + \
                 self.n_channels + self.n_breaks
-                                           
+
         self.H = np.zeros((m,n))
         for i in range(0,m):
 

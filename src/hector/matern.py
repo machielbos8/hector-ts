@@ -83,21 +83,6 @@ class Matern:
 
 
 
-    def backward(self,a,b,c,z,F,Fp1):
-        """ Compute backward recursion
-
-        Args:
-            a,b,c,z (double) : Hypergeometric function 2F1(a,b;c;z)
-            Fp1 (double)     : 2F1(a+1,b;c+1;z)
-
-        Returns:
-            2F1(a-1,b;c-1;z)
-        """
-
-        return ((1.0-c+(b-a)*z)*F + (a*(c-b)*z)*Fp1/c)/(1.0-c)
-
-
-    
     def create_t(self,m,k,param):
         """ Create first row of covariance matrix of power-law noise
     
