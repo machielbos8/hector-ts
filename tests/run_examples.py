@@ -353,6 +353,7 @@ def main():
             ('test_ggm_index', 'run_ggm_index_tests', 'ggm-index'),
             ('test_ggm_float', 'run_ggm_float_tests', 'ggm-float'),
             ('test_ggm_band', 'run_ggm_band_tests', 'ggm-band'),
+            ('test_convergence', 'run_convergence_tests', 'convergence'),
             ('test_modified_std', 'run_modified_std_tests', 'mod-std'),
             ('test_spectrum', 'run_spectrum_tests', 'spectrum'),
             ('test_predicttrenderror', 'run_predicttrenderror_tests', 'trend-err'),
