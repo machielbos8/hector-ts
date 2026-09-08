@@ -288,7 +288,7 @@ class GGM:
         #--- Sanity check for non-stationary power-law
         if fabs(phi) < EPS and d > 0.5:
             print("kappa< -1.0 ({0:f}) : non-stationary".format(kappa))
-            print("1-phi: {0:f}".format(phi))
+            print("1-phi: {0:e}".format(phi))
             sys.exit()
 
         return _covariance_row(m, d, phi), k_new
@@ -455,15 +455,15 @@ class GGM:
             if self.Nparam==0:
                 print('d         = {0:7.4f} (fixed)'.format(d))
                 print('kappa     = {0:7.4f} (fixed)'.format(kappa))
-                print('1-phi     = {0:7.4f} (fixed)\n'.format(phi))
+                print('1-phi     = {0:7.4e} (fixed)\n'.format(phi))
             elif self.Nparam==1:
                 print('d         = {0:7.4f}'.format(d))
                 print('kappa     = {0:7.4f}'.format(kappa))
-                print('1-phi     = {0:7.4f} (fixed)\n'.format(phi))
+                print('1-phi     = {0:7.4e} (fixed)\n'.format(phi))
             else:
                 print('d         = {0:7.4f}'.format(d))
                 print('kappa     = {0:7.4f}'.format(kappa))
-                print('1-phi     = {0:7.4f}\n'.format(phi))
+                print('1-phi     = {0:7.4e}\n'.format(phi))
 
         output_single['d']     = d
         output_single['kappa'] = kappa

@@ -208,10 +208,9 @@ class MLE:
             else:
                 param0 = self.cov.get_param0()
 
-            #--- Nelder-Mead options. Defaults reproduce earlier behaviour;
-            #    the control file may override the number of iterations
-            #    (MaxIterations) and the convergence tolerance (Tolerance,
-            #    applied to both the parameter and the log-likelihood criteria).
+            #--- Nelder-Mead options. The control file may override the number
+            #    of iterations (MaxIterations) and the convergence tolerance
+            #    (Tolerance).
             options = {'maxiter': 10000, 'xatol': 1.0e-6}
             try:
                 options['maxiter'] = int(control.params['MaxIterations'])
@@ -220,9 +219,37 @@ class MLE:
             try:
                 tol = float(control.params['Tolerance'])
                 options['xatol'] = tol
-                options['fatol'] = tol
             except KeyError:
-                pass
+                tol = 1.0e-4          # scipy's own Nelder-Mead default for fatol
+
+            #--- TOLERANCE ON THE LOG-LIKELIHOOD IS RELATIVE, NOT ABSOLUTE.
+            #
+            #    scipy's Nelder-Mead stops only when BOTH the simplex has
+            #    shrunk below xatol AND the spread of function values is below
+            #    fatol -- and fatol is an ABSOLUTE bound.  The log-likelihood
+            #    grows with the number of observations, so a fixed absolute
+            #    bound silently means something different for every series: on
+            #    John Langbein's 30-year daily creepmeter record ln(L) is about
+            #    26783, where the documented Tolerance 1e-8 asks for thirteen
+            #    significant digits.  The gapped solver's own accuracy is
+            #    nearer 1e-2 there, so that can never be met however long it
+            #    runs.  Convergence then came down to luck: if the simplex
+            #    happened to collapse until every vertex returned a bitwise
+            #    identical value the spread was exactly zero and it stopped
+            #    (103 iterations); otherwise it ground on to MaxIterations
+            #    (10000).  Changing a FIXED parameter by 1.4 per cent was
+            #    enough to flip between the two -- reported 2026-09-08, and
+            #    reproduced here by adding Tolerance 1e-8 to a synthetic series
+            #    that otherwise converged in 6.7 s.
+            #
+            #    Scaling fatol by the size of the log-likelihood makes
+            #    Tolerance mean the same thing for a short series and a
+            #    thirty-year one: "this many significant digits", which is what
+            #    a user setting 1e-8 believes they are asking for.  The scale
+            #    costs one extra likelihood evaluation, which is nothing
+            #    against the hundreds the search itself needs.
+            ln_L0 = self.log_likelihood(param0)
+            options['fatol'] = tol * max(1.0, abs(ln_L0))
 
             #--- search for maximum (-minimum) log-likelihood value
             result=minimize(self.log_likelihood, param0, method='Nelder-Mead',\
