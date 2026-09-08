@@ -2993,7 +2993,7 @@ accepts `OffsetThreshold` and `MaxOffsets`.
 | `kappa_fixed` | keep value of spectral index fixed to given value (optional, only for Powerlaw, Matern and GGM) |
 | `lambda_fixed` | keep value of lambda fixed (optional, only for Matern) |
 | `RandomiseFirstGuess` | yes\|no (optional, default=no) |
-| `Tolerance` | Nelder-Mead convergence tolerance (optional; default 1e-4). Applied absolutely to the parameters (`xatol`, default 1e-6) and **relatively** to the log-likelihood (`fatol` = `Tolerance` x |ln L|), so it means the same number of significant digits whatever the length of the series. A smaller value tightens convergence at the cost of more iterations. Example: `Tolerance 1e-8` |
+| `Tolerance` | Nelder-Mead convergence tolerance (optional; default 1e-4). Applied **relatively** to both the log-likelihood (`fatol` = `Tolerance` x |ln L|) and the parameters (which are searched in units of their starting values, `xatol` default 1e-6), so it means the same number of significant digits whatever the length of the series and whatever the scale of each parameter. A smaller value tightens convergence at the cost of more iterations. Example: `Tolerance 1e-8` |
 | `MaxIterations` | maximum number of Nelder-Mead iterations (optional, default=10000) |
 | `ReferenceSpan` | span in years over which the modified standard deviation of the power-law/GGM noise is computed (optional, default=8.0). See the "Comparing Noise Amplitudes Between Stations" section. Use the same value for all stations being compared. Example: `ReferenceSpan 8.0` |
 | `estimatemultivariate` | yes\|no (optional, default=no) |
@@ -3605,7 +3605,21 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
    converging to 75 iterations in five seconds, returning the same spectral
    index.  All examples are unchanged.
 
-2. **`1-phi` is printed in scientific notation.**  At the values actually used
+2. **The parameter tolerance is relative as well.**  `xatol` was compared
+   against one absolute number for parameters living on very different scales.
+   In a typical GGM+White fit the three parameters end near 0.78, -2.29 and
+   1.5e-3, so the default 1e-6 meant 1.3e-6, 4.4e-7 and 6.8e-4 relative -- the
+   GGM `1-phi` was pinned some 1500 times more loosely than the spectral index,
+   and at `1-phi` ~ 7e-6 it was not constrained at all.  Unlike the
+   log-likelihood case this did not stop a run; it stopped one *too early*, and
+   reported an imprecise `1-phi` without saying so.  The search now runs in units
+   of the starting values, so one tolerance means the same relative thing for
+   every parameter.  The search path is unchanged -- the initial simplex was
+   already built from 5 per cent relative steps -- and all examples reproduce
+   exactly.  A parameter that ranges over decades, as `1-phi` does, would be
+   better searched in log space; that remains future work.
+
+3. **`1-phi` is printed in scientific notation.**  At the values actually used
    (e.g. 6.9e-6) the previous fixed-point format printed `0.0000`.  John
    Langbein's suggestion.
 

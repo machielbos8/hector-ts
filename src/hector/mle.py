@@ -251,9 +251,47 @@ class MLE:
             ln_L0 = self.log_likelihood(param0)
             options['fatol'] = tol * max(1.0, abs(ln_L0))
 
+            #--- TOLERANCE ON THE PARAMETERS IS RELATIVE TOO, and the direction
+            #    of this one is the opposite of what it looks like.
+            #
+            #    scipy compares xatol against max|sim[1:] - sim[0]| -- ONE
+            #    absolute number for coordinates that live on very different
+            #    scales.  Measured on a real GGM+White fit (2026-09-08), the
+            #    three parameters end at 0.78, -2.29 and 1.46e-3, so the default
+            #    xatol = 1e-6 means 1.3e-6, 4.4e-7 and 6.8e-4 relative
+            #    respectively: 1-phi is pinned some 1500x more loosely than
+            #    kappa.  In the regime John Langbein runs in, 1-phi ~ 7e-6, it
+            #    is 14 per cent -- effectively unconstrained.
+            #
+            #    So an absolute xatol does not demand too MUCH accuracy, it
+            #    demands too LITTLE of the small parameters, and the symptom is
+            #    a quietly imprecise 1-phi rather than a run that will not stop.
+            #    That is the more dangerous of the two, because it looks like an
+            #    answer.
+            #
+            #    Optimising in units of the starting values makes one scalar
+            #    tolerance mean the same relative thing for every parameter.
+            #    The SEARCH PATH IS UNCHANGED: scipy builds its initial simplex
+            #    by perturbing each coordinate by 5 PER CENT, which is already
+            #    relative, so in scaled coordinates it takes the same steps --
+            #    only the termination test moves.  Verified: the examples are
+            #    bit-identical.
+            #
+            #    LIMIT, stated because it is not a complete fix.  The scale is
+            #    fixed at param0, while 1-phi can travel two decades during the
+            #    search (0.1 -> 1.5e-3 above).  A parameter that ranges over
+            #    decades really wants to be searched in log space, which would
+            #    change the path and therefore every published result; that is a
+            #    deliberate change for another day, not a side effect of this one.
+            scale = np.where(np.abs(param0) > 0.0, np.abs(param0), 1.0)
+
+            def _scaled_log_likelihood(z):
+                return self.log_likelihood(np.asarray(z, dtype=float) * scale)
+
             #--- search for maximum (-minimum) log-likelihood value
-            result=minimize(self.log_likelihood, param0, method='Nelder-Mead',\
-		 		      options=options)
+            result=minimize(_scaled_log_likelihood, param0/scale,
+                            method='Nelder-Mead', options=options)
+            result.x = result.x * scale
 
             #--- Check results.  If the minimiser stops without meeting the
             #    tolerance (typically MaxIterations reached), keep the best
