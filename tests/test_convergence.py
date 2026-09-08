@@ -10,18 +10,38 @@ minutes.  The cause was that `Tolerance` was passed to scipy as an ABSOLUTE
 bound on the log-likelihood, and ln(L) grows with the number of observations, so
 the keyword silently meant something different for every series.
 
-Fixing that one number would be whack-a-mole.  The tests below guard the three
-PROPERTIES a convergence criterion has to have, each of which fails loudly if
-any future change reintroduces the same class of defect:
+Fixing that one number would be whack-a-mole.  The tests below guard the
+PROPERTIES a convergence criterion has to have.  Validated by reverting mle.py
+and re-running -- which tests catch THIS regression is stated, because a test
+suite that claims uniform coverage it does not have is worse than a small one:
 
-  1. SMOOTHNESS   the objective must be deterministic and free of jitter at the
-                  scale the criterion asks about.  This is the root cause: a
-                  criterion can only be as tight as the function is smooth.
-  2. SCALE        a given Tolerance must mean the same thing for a short series
-                  and a long one.  An absolute criterion fails this as m grows.
-  3. CONTINUITY   a small change in a FIXED parameter must not change the
-                  iteration count by orders of magnitude.  That discontinuity is
-                  the signature of an unreachable criterion being met by luck.
+  1. MECHANISM    fatol handed to scipy must be Tolerance x |ln L|, not
+                  Tolerance.  Pins the cause rather than the symptom.
+                  FAILS on the pre-fix code, in about two seconds.
+  2. SMOOTHNESS   measures the objective's numerical noise floor and checks the
+                  criterion sits above it.  PASSES on both versions by design:
+                  it monitors the OBJECTIVE, which the fix did not change, and
+                  exists to catch a future gap-solver regression that would make
+                  any tolerance unreachable.  This is the property Hector 2.2
+                  gets right and v3 has to keep.
+  3. SCALE        the same Tolerance must converge at m = 1000, 4000, 11333.
+                  FAILS on the pre-fix code at m = 11333.
+  4. CONTINUITY   nudging a FIXED GGM 1-phi must not move the iteration count by
+                  more than 5x.  FAILS on the pre-fix code, 2 of 4 sweep points.
+                  This is John's exact symptom.
+  5. LADDER       Tolerance 1e-4/1e-6/1e-8 must converge and agree on kappa.
+                  PASSES on both: it guards a different property -- that the
+                  ESTIMATE does not depend on the stopping rule.
+
+So three of the five discriminate this regression and two are monitors for
+adjacent failures.  Both kinds are wanted; conflating them is not.
+
+THE GAP FRACTION IS LOAD-BEARING.  At 1.2 per cent gaps the pre-fix code
+converged happily at Tolerance 1e-8 (116 iterations); at 5, 15 and 30 per cent
+it did not converge at all.  The gapped likelihood's noise floor grows with the
+amount of gap correction, so a nearly-complete series does not exercise the
+defect.  These tests use 10 per cent, which is also what a real GNSS record
+looks like.
 
 WHAT HECTOR 2.2 DOES, because it is the natural comparison and the answer is not
 the obvious one.  `asa047.cpp` breaks when the sum of squared deviations of the
@@ -70,7 +90,17 @@ CTL = (
 )
 
 
-def _series(path, m, gap_fraction=0.012, seed=42):
+#--- 10 PER CENT GAPS, NOT 1.2. Measured 2026-09-08: on the pre-fix code a
+#    1.2%-gap series converged happily at Tolerance 1e-8 (116 iterations),
+#    while 5, 15 and 30% all failed to converge at all. The gapped likelihood's
+#    numerical noise floor is what makes a tight absolute criterion unreachable,
+#    and that floor grows with the amount of gap correction being done -- so a
+#    nearly-complete series does not exercise the defect these tests exist to
+#    catch. 10% is also what a real GNSS record looks like.
+GAP_FRACTION = 0.10
+
+
+def _series(path, m, gap_fraction=GAP_FRACTION, seed=42):
     """Seeded power-law (kappa) + white noise with gaps, Hosking filter."""
     import numpy as np
     rng = np.random.default_rng(seed)
@@ -117,11 +147,22 @@ def _run(tmp, data, extra, timeout=TIMEOUT):
 # ── 1. the objective must be smooth enough for the criterion to be meaningful ──
 
 def test_objective_smoothness(verbose=True):
-    """The log-likelihood must be deterministic, and its jitter must be small
-    relative to |ln L| — because that ratio is the tightest Tolerance that can
-    ever be met.  Hector 2.2 meets 1e-15 absolute; if v3's jitter ever grows so
-    large that even a relative criterion is unreachable, this catches it here
-    rather than in a user's fifteen-minute run."""
+    """Measure the log-likelihood's numerical noise floor, and assert that the
+    convergence criterion sits above it.
+
+    THIS IS THE ROOT-CAUSE TEST, and the one that encodes what the Hector 2.2
+    comparison taught us.  A Nelder-Mead criterion can only ever be as tight as
+    the objective is smooth.  2.2 meets an ABSOLUTE 1e-15 because its gapped
+    likelihood is smooth to nearly machine precision; v3's iterative gap solver
+    leaves a jitter floor, and any criterion below that floor is unreachable no
+    matter how many iterations are allowed.
+
+    So rather than assert a tolerance value, this measures the floor directly --
+    evaluate ln L along a tiny parameter interval, fit a straight line, and take
+    the residual scatter as the jitter -- and then checks that the tolerance the
+    optimiser actually uses is comfortably above it.  If a future change to the
+    gap solver makes the objective noisier, this fails here with a number,
+    instead of surfacing as a user's fifteen-minute run that never converges."""
     import numpy as np
     from hector.control import Control
     from hector.observations import Observations
@@ -132,31 +173,46 @@ def test_objective_smoothness(verbose=True):
         cwd = os.getcwd()
         try:
             os.chdir(tmp)
-            Control.reset() if hasattr(Control, "reset") else None
-            control = Control("run.ctl")
+            Control("run.ctl")
             Observations()
             from hector.mle import MLE
             mle = MLE()
-            p0 = mle.cov.get_param0()
-            vals = [mle.log_likelihood(np.array(p0, dtype=float)) for _ in range(5)]
+            p0 = np.array(mle.cov.get_param0(), dtype=float)
+            repeats = [mle.log_likelihood(p0.copy()) for _ in range(3)]
+            #--- a step far below anything the optimiser resolves: over such a
+            #    span ln L is linear to many digits, so whatever is left after
+            #    removing the line is numerical noise, not signal.
+            h = 1.0e-7
+            xs = np.arange(9) * h
+            ys = np.array([mle.log_likelihood(p0 + np.array([x] + [0.0] * (len(p0) - 1)))
+                           for x in xs])
         finally:
             os.chdir(cwd)
 
-    determinstic = max(vals) - min(vals) == 0.0
-    scale = abs(vals[0])
-    # jitter over a parameter step far below what the optimiser resolves
-    if verbose:
-        print("    ln L = {0:.6f}, repeat spread = {1:.3e}".format(vals[0],
-                                                                   max(vals) - min(vals)))
-    if not determinstic:
+    scale = abs(ys[0])
+    if max(repeats) - min(repeats) != 0.0:
         if verbose:
-            print("    [ FAIL ] the log-likelihood is not deterministic: the same "
-                  "parameters gave {0:.3e} of spread. Nelder-Mead cannot converge "
-                  "on a random objective.".format(max(vals) - min(vals)))
+            print("    [ FAIL ] ln L is not deterministic: {0:.3e} of spread over "
+                  "identical evaluations. Nelder-Mead cannot converge on a random "
+                  "objective.".format(max(repeats) - min(repeats)))
+        return False
+
+    jitter = float(np.std(ys - np.polyval(np.polyfit(xs, ys, 1), xs)))
+    rel = jitter / scale if scale else float("inf")
+    #--- what the optimiser will actually demand, with the default Tolerance
+    fatol = 1.0e-4 * max(1.0, scale)
+    if verbose:
+        print("    |ln L| = {0:.1f}, jitter = {1:.2e} ({2:.1e} relative), "
+              "default fatol = {3:.2e}".format(scale, jitter, rel, fatol))
+    if jitter >= fatol:
+        if verbose:
+            print("    [ FAIL ] the objective's own noise ({0:.2e}) is at or above "
+                  "the convergence criterion ({1:.2e}). No tolerance can be met; "
+                  "this is unreachable-by-construction, not slow.".format(jitter, fatol))
         return False
     if verbose:
-        print("    [  OK  ] deterministic over 5 identical evaluations "
-              "(|ln L| = {0:.1f})".format(scale))
+        print("    [  OK  ] deterministic, and the criterion sits {0:.0f}x above the "
+              "objective's noise floor".format(fatol / jitter if jitter else float("inf")))
     return True
 
 
@@ -264,14 +320,90 @@ def test_tolerance_ladder(verbose=True):
     return True
 
 
+# ── 5. pin the mechanism itself, in milliseconds ─────────────────────────────
+
+def test_fatol_is_relative(verbose=True):
+    """Assert directly that the tolerance handed to scipy scales with |ln L|.
+
+    The four tests above are behavioural: they notice that convergence has gone
+    wrong.  This one pins the CAUSE.  It intercepts the options dict `mle.py`
+    passes to `scipy.optimize.minimize` and checks that `fatol` is
+    `Tolerance x |ln L(param0)|` rather than `Tolerance`.  A revert fails here
+    in a couple of seconds with an exact number, instead of costing a 60 s
+    timeout somewhere downstream -- and it cannot be satisfied by luck, which is
+    what made the original defect so hard to see."""
+    import numpy as np
+    import scipy.optimize
+    from hector.control import Control
+    from hector.observations import Observations
+
+    captured = {}
+    real_minimize = scipy.optimize.minimize
+
+    def spy(fun, x0, *args, **kw):
+        captured['options'] = dict(kw.get('options') or {})
+        captured['lnL0'] = fun(np.array(x0, dtype=float))
+        #--- stop immediately; we only want the options, not the search
+        kw = dict(kw); kw['options'] = dict(captured['options'], maxiter=1)
+        return real_minimize(fun, x0, *args, **kw)
+
+    TOL = 1.0e-8
+    with tempfile.TemporaryDirectory() as tmp:
+        _series(os.path.join(tmp, "data.mom"), 2000)
+        with open(os.path.join(tmp, "run.ctl"), "w") as fp:
+            fp.write(CTL.format(data="data.mom")
+                     + "GGM_1mphi           6.9e-6\nTolerance           {0}\n".format(TOL))
+        cwd = os.getcwd()
+        try:
+            os.chdir(tmp)
+            Control("run.ctl")
+            Observations()
+            import hector.mle as mle_mod
+            mle_mod.minimize = spy
+            try:
+                mle_mod.MLE().estimate_parameters()
+            finally:
+                mle_mod.minimize = real_minimize
+        finally:
+            os.chdir(cwd)
+
+    if 'options' not in captured:
+        if verbose:
+            print("    [ FAIL ] scipy.optimize.minimize was never called through "
+                  "hector.mle.minimize; this test needs rewiring")
+        return False
+    fatol = captured['options'].get('fatol')
+    scale = abs(captured['lnL0'])
+    expected = TOL * max(1.0, scale)
+    if verbose:
+        print("    Tolerance {0:.0e}, |ln L(param0)| = {1:.1f}  ->  fatol = {2}".format(
+            TOL, scale, "{0:.3e}".format(fatol) if fatol is not None else "NOT SET"))
+    if fatol is None:
+        if verbose:
+            print("    [ FAIL ] fatol is not set at all, so scipy's absolute default "
+                  "(1e-4) applies and Tolerance silently governs only xatol.")
+        return False
+    if abs(fatol - expected) > 1.0e-12 * expected:
+        if verbose:
+            print("    [ FAIL ] fatol is {0:.3e}, expected {1:.3e} = Tolerance x |ln L|. "
+                  "An ABSOLUTE fatol means a different thing for every series "
+                  "length.".format(fatol, expected))
+        return False
+    if verbose:
+        print("    [  OK  ] fatol = Tolerance x |ln L|, so the keyword means the same "
+              "number of significant digits at any series length")
+    return True
+
+
 def run_convergence_tests(verbose=True):
     if verbose:
         print("\n" + "─" * 60)
         print("  convergence  Nelder-Mead must converge at every scale")
         print("─" * 60)
     results = []
-    for fn in (test_objective_smoothness, test_scale_invariance,
-               test_fixed_parameter_continuity, test_tolerance_ladder):
+    for fn in (test_fatol_is_relative, test_objective_smoothness,
+               test_scale_invariance, test_fixed_parameter_continuity,
+               test_tolerance_ladder):
         try:
             results.append(fn(verbose))
         except Exception as exc:                                   # noqa: BLE001
