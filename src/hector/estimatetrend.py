@@ -75,7 +75,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    estimatetrend, version 3.1.5.")
+        print("    estimatetrend, version 3.1.6.")
         print("***************************************")
 
    

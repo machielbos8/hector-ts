@@ -1,7 +1,7 @@
 ---
 tm-title: "Hector"
-tm-subtitle: "User Manual version 3.1.5"
-tm-runhead: "Hector v3.1.5 User Manual"
+tm-subtitle: "User Manual version 3.1.6"
+tm-runhead: "Hector v3.1.6 User Manual"
 tm-author: "Machiel S. Bos"
 tm-date: "2026"
 bibliography: references_manual.bib
@@ -689,7 +689,7 @@ The program `estimatetrend` shows the following on the screen:
 
 ```
 ***************************************
-    estimatetrend, version 3.1.5.
+    estimatetrend, version 3.1.6.
 ***************************************
 Filename                   : pre_files/TEST.mom
 TS_format                  : mom
@@ -929,7 +929,7 @@ The output printed on the screen is:
 
 ```
 ************************************
-    estimatespectrum, version 3.1.5
+    estimatespectrum, version 3.1.6
 ************************************
 Data format: MJD, Observations, Model
 Filename              : ./mom_files/TEST.mom
@@ -2203,7 +2203,7 @@ long series with a *moderate* $1-\phi$ (roughly $50/m < 1-\phi < 0.106$, the
 orange strip in the figure) each evaluation then takes seconds, hangs, or
 aborts — and because the Nelder-Mead search starts at $1-\phi = 0.1$, exactly
 inside this strip, estimating GGM with a free $1-\phi$ on a long series used
-to crash there (versions up to 3.1.3). Since version 3.1.5 Hector computes
+to crash there (versions up to 3.1.3). Since version 3.1.4 Hector computes
 the seeds in this strip — and everywhere above it, the whole hatched region —
 with the plain Gauss series, whose terms are all positive (no cancellation)
 and which needs only about $39/(2(1-\phi))$ terms — cheap exactly where
@@ -2661,7 +2661,7 @@ Running `findoffsets` prints the iterative search progress:
 
 ```
 ***************************************
-    findoffsets, version 3.1.5.
+    findoffsets, version 3.1.6.
 ***************************************
 0: best offset at  50784.00 (i=200) : dln=  87.432
 1: best offset at  51034.00 (i=450) : dln=  74.618
