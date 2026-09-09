@@ -77,7 +77,9 @@ def _write_ncf_channel_ctl(ctl_out_path, params, column):
         fp.write(f"Verbose              no\n")
 
 
-def _removeoutliers_ncf(ctl_fname, params, verbose):
+def _removeoutliers_ncf(ctl_fname, params, verbose, graph=False,
+                        save_eps=False, save_png=False, plotname='',
+                        phys_unit=''):
     """NCF outlier removal: processes each channel independently.
 
     If ColumnName is set in params, only that channel is processed.
@@ -86,6 +88,10 @@ def _removeoutliers_ncf(ctl_fname, params, verbose):
     Copies the raw input NCF to the output path, then overwrites each
     channel with the datasnooping-cleaned version.  Outliers are stored
     as NaN so downstream tools treat them as gaps.
+
+    A figure per channel is shown/saved when graph/save_eps/save_png is
+    set; files go to data_figures/<plotname>_<column>.png|eps so that
+    multi-channel files do not overwrite each other.
     """
     control   = Control()
     data_dir  = params.get('DataDirectory', '.')
@@ -122,11 +128,49 @@ def _removeoutliers_ncf(ctl_fname, params, verbose):
         ds  = _make_detector(params)
         obs = Observations()
 
+        #--- Keep the raw observations for the plot
+        t = _MJD_EPOCH_MPLNUM + obs.data.index.to_numpy()
+        x = np.copy(obs.data['obs'].to_numpy())
+
         col_output = {}
         ds.run(col_output)
 
+        #--- Get filtered data
+        x_new = obs.data['obs'].to_numpy()
+
         # Overwrite this channel in the output NCF with the cleaned version.
         obs.write(str(output_ncf))
+
+        #--- Show/save graph?
+        if graph==True or save_eps==True or save_png==True:
+            fig = plt.figure(figsize=(6, 4), dpi=150)
+            plt.plot(t, x, 'b-', label='observed')
+            plt.plot(t, x_new, 'r-', label='filtered')
+            plt.legend()
+            plt.ylabel('[{0:s}]'.format(phys_unit))
+            _apply_date_axis(plt.gca(), plt.gcf())
+
+            if graph==True:
+                plt.show()
+
+            if save_eps==True or save_png==True:
+
+                #--- Does the data_figures directory exists?
+                if not os.path.exists('data_figures'):
+                    os.mkdir('data_figures')
+
+                directory = Path('data_figures')
+                if save_eps==True:
+                    fname_fig = directory / \
+                                '{0:s}_{1:s}.eps'.format(plotname, column)
+                    fig.savefig(fname_fig, format='eps', bbox_inches='tight')
+                if save_png==True:
+                    fname_fig = directory / \
+                                '{0:s}_{1:s}.png'.format(plotname, column)
+                    fig.savefig(fname_fig, format='png', bbox_inches='tight',
+                                dpi=300)
+
+            plt.close(fig)
 
         all_output['channels'][column] = col_output
         SingletonMeta.clear_all()
@@ -185,7 +229,7 @@ def main():
     try:
         time_unit = control.params['TimeUnit']
     except:
-        time_unit = 'unkown'
+        time_unit = 'unknown'
 
     try:
         plotname = control.params['PlotName']
@@ -207,7 +251,10 @@ def main():
     #--- NCF multi-channel path: process e, n, u independently
     if datafile.lower().endswith(('.ncf', '.nc')):
         try:
-            _removeoutliers_ncf(fname, control.params, verbose)
+            _removeoutliers_ncf(fname, control.params, verbose,
+                                graph=graph, save_eps=save_eps,
+                                save_png=save_png, plotname=plotname,
+                                phys_unit=phys_unit)
         except MemoryError as e:
             print(f"\nERROR: out of memory — {e}")
             print("Hint: use Spike_factor instead of IQ_factor for large data sets.")
