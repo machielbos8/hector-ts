@@ -69,10 +69,16 @@ KAPPA = -2.3
 #--- A GENEROUS TIMEOUT IS THE WRONG KIND OF SAFETY HERE.  The failure this
 #    suite guards against is non-convergence, which presents as a run that never
 #    finishes -- so with a long timeout a regression FREEZES CI instead of
-#    failing it.  The passing runs below take 1.3-5.2 s; 60 s is ten times the
-#    slowest and turns a hang into a fast, legible failure.  Same reasoning as
-#    the watchdog in test_ggm_band.py.
-TIMEOUT = 60
+#    failing it.  BUT the margin must be measured on the slowest machine that
+#    runs the suite, not the fastest: on an idle M4 the passing runs take
+#    1.3-5.2 s, while on a shared GitHub CI runner the m=11333 scale case
+#    needs ~54 s -- the original 60 s timeout passed the v3.1.6 release by
+#    5.9 s and then failed the (identical) v3.1.7 code on a marginally slower
+#    runner.  A true regression is a 10000-iteration grind of ten minutes or
+#    more, so 180 s still fails a hang fast and legibly while giving 3x
+#    headroom over the observed CI worst case.  Same reasoning as the
+#    watchdog in test_ggm_band.py.
+TIMEOUT = 180
 
 CTL = (
     "DataFile            {data}\n"
