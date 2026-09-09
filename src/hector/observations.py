@@ -239,8 +239,28 @@ class Observations(metaclass=SingletonMeta):
             
         #--- Create special missing data matrix F
         self.m = len(self.data.index)
-        n = self.data['obs'].isna().sum()
-        self.F = np.zeros((self.m,n))
+        n = int(self.data['obs'].isna().sum())
+        # Dense F is m x n_gaps float64, so a long series with many gaps can
+        # request more than the machine has (~120 GB for 4M epochs at 40%
+        # gaps). Linux refuses the overcommit and kills the process; fail
+        # early with a clear message instead. Same 85% rule as set_NaN.
+        needed = self.m * n * 8
+        avail = _avail_ram()
+        if avail > 0 and needed > avail * 0.85:
+            raise MemoryError(
+                f"gap matrix F ({self.m} x {n}) needs {needed / 1e9:.1f} GB "
+                f"but only {avail / 1e9:.1f} GB is available: the series has "
+                f"{100.0 * n / self.m:.1f}% missing epochs, which the dense "
+                f"gap representation cannot hold at this length. Shorten or "
+                f"decimate the series, or fill the gaps."
+            )
+        try:
+            self.F = np.zeros((self.m,n))
+        except MemoryError:
+            raise MemoryError(
+                f"gap matrix F ({self.m} x {n}) needs {needed / 1e9:.1f} GB, "
+                f"which could not be allocated."
+            ) from None
         j=0
         for i in range(0,self.m):
             if np.isnan(self.data.iloc[i,0])==True:

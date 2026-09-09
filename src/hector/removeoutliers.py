@@ -263,8 +263,12 @@ def main():
         return
 
     #--- Get Classes (univariate .mom / .gen path)
-    datasnooping = _make_detector(control.params)
-    observations = Observations()
+    try:
+        datasnooping = _make_detector(control.params)
+        observations = Observations()
+    except MemoryError as e:
+        print(f"\nERROR: out of memory — {e}")
+        sys.exit(1)
 
     #--- Get data
     mjd = observations.data.index.to_numpy()

@@ -1,0 +1,10 @@
+{
+    "sampling_period": 1.0,
+    "station": "TEST",
+    "component": "u",
+    "channels": ["u"],
+    "offsets": {
+        "offset_time": [50284.0, 50334.0, 50784.0, 51034.0],
+        "offset_type": [0, 0, 0, 0]
+    }
+}

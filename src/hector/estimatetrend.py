@@ -15,6 +15,7 @@
 #===============================================================================
 
 import os
+import sys
 import math
 import time
 import json
@@ -109,18 +110,26 @@ def main():
         pass
         
     #--- Call these singleton variables to later have subroutine 'show_results'
-    observations = Observations()
-    designmatrix = DesignMatrix()
-    covariance   = Covariance()
+    try:
+        observations = Observations()
+        designmatrix = DesignMatrix()
+        covariance   = Covariance()
 
-    #--- MLE
-    mle = MLE()
+        #--- MLE
+        mle = MLE()
+    except MemoryError as e:
+        print(f"\nERROR: out of memory — {e}")
+        sys.exit(1)
 
     #--- Start the clock!
     start_time = time.time()
 
     #--- run MLE (least-squares + nelder-mead cycle to find minimum)
-    [theta,C_theta,noise_params,sigma_eta] = mle.estimate_parameters()
+    try:
+        [theta,C_theta,noise_params,sigma_eta] = mle.estimate_parameters()
+    except MemoryError as e:
+        print(f"\nERROR: out of memory — {e}")
+        sys.exit(1)
 
     #--- The diagonal of C_theta contains variance of estimated parameters
     error = np.sqrt(np.diagonal(C_theta))

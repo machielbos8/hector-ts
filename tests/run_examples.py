@@ -91,6 +91,38 @@ def _checks_ex1(d):
     ej = json.loads((d / 'estimatetrend.json').read_text())
     t = ej.get('trend', float('nan'))
     ok &= _check('trend ≈ 16.753 mm/yr', _near(t, 16.753, 0.05), f'{t:.3f}')
+    # -png must actually produce figures. Both programs default to
+    # data_figures/TEST.png (plotname = DataFile stem), so the steps rename
+    # each figure after the step that made it; stale shipped figures are
+    # removed by the first step.
+    ok &= _check('removeoutliers -png wrote data_figures/TEST.png',
+                 (d / 'data_figures' / 'removeoutliers_TEST.png').exists())
+    ok &= _check('estimatetrend -png wrote data_figures/TEST.png',
+                 (d / 'data_figures' / 'estimatetrend_TEST.png').exists())
+    return ok
+
+
+def _checks_ex1_ncf(d):
+    """ex1 on netCDF input: same pipeline, same answer, per-channel figures."""
+    ok = True
+    ok &= _check('obs_files/TEST.ncf created by ncfgen',
+                 (d / 'obs_files' / 'TEST.ncf').exists())
+    rj = json.loads((d / 'removeoutliers.json').read_text())
+    n = len(rj.get('channels', {}).get('u', {}).get('outliers', []))
+    ok &= _check('removeoutliers (ncf): 6 outliers removed on channel u',
+                 n == 6, f'got {n}')
+    ok &= _check('pre_files/TEST.ncf created',
+                 (d / 'pre_files' / 'TEST.ncf').exists())
+    ok &= _check('removeoutliers -png wrote data_figures/TEST_ncf_u.png',
+                 (d / 'data_figures' / 'TEST_ncf_u.png').exists())
+    ok &= _check('mom_files/TEST.ncf created',
+                 (d / 'mom_files' / 'TEST.ncf').exists())
+    ej = json.loads((d / 'estimatetrend.json').read_text())
+    t = ej.get('trend', float('nan'))
+    ok &= _check('trend ≈ 16.753 mm/yr (matches the mom pipeline)',
+                 _near(t, 16.753, 0.05), f'{t:.3f}')
+    ok &= _check('estimatetrend -png wrote data_figures/TEST_ncf_trend.png',
+                 (d / 'data_figures' / 'TEST_ncf_trend.png').exists())
     return ok
 
 
@@ -175,11 +207,27 @@ EXAMPLES = {
     'ex1': {
         'title': 'Synthetic GNSS time series',
         'steps': [
+            # shipped figures would make the -png checks pass vacuously
+            'rm -f data_figures/*.png data_figures/*.eps',
             'removeoutliers -png',
+            'mv data_figures/TEST.png data_figures/removeoutliers_TEST.png',
             'estimatetrend -png',
+            'mv data_figures/TEST.png data_figures/estimatetrend_TEST.png',
             'estimatespectrum -model -png',
         ],
         'checks': _checks_ex1,
+        'timeout': 120,
+    },
+    'ex1_ncf': {
+        'title': 'Synthetic GNSS time series, netCDF (.ncf) input',
+        'dir': 'ex1',
+        'steps': [
+            'rm -f data_figures/*.png data_figures/*.eps',
+            'ncfgen -m ncf_meta.json -d obs_files/TEST.mom -o obs_files/TEST.ncf',
+            'removeoutliers -i removeoutliers_ncf.ctl -png',
+            'estimatetrend -i estimatetrend_ncf.ctl -png',
+        ],
+        'checks': _checks_ex1_ncf,
         'timeout': 120,
     },
     'ex2': {
@@ -240,14 +288,14 @@ EXAMPLES = {
     },
 }
 
-ALL_EXAMPLES = ['ex1', 'ex2', 'ex3', 'ex4', 'ex5', 'ex6', 'ex7']
-DEFAULT_EXAMPLES = ['ex1', 'ex2', 'ex3', 'ex4', 'ex5', 'ex7']   # ex6 opt-in
+ALL_EXAMPLES = ['ex1', 'ex1_ncf', 'ex2', 'ex3', 'ex4', 'ex5', 'ex6', 'ex7']
+DEFAULT_EXAMPLES = ['ex1', 'ex1_ncf', 'ex2', 'ex3', 'ex4', 'ex5', 'ex7']   # ex6 opt-in
 
 
 # ── runner ────────────────────────────────────────────────────────────────────
 
 def run_example(name, conf, examples_dir):
-    src = examples_dir / name
+    src = examples_dir / conf.get('dir', name)
     if not src.is_dir():
         print(f'  [ERROR] {src} not found')
         return False
@@ -359,6 +407,7 @@ def main():
             ('test_predicttrenderror', 'run_predicttrenderror_tests', 'trend-err'),
             ('test_noise_zoo', 'run_noise_zoo_tests', 'noise-zoo'),
             ('test_ggm_fallback', 'run_ggm_fallback_tests', 'ggm-py'),
+            ('test_memory_guard', 'run_memory_guard_tests', 'mem-guard'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)
