@@ -361,7 +361,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    estimatespectrum, version 3.1.6.")
+        print("    estimatespectrum, version 3.1.7.")
         print("***************************************")
 
     #--- Get Classes

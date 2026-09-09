@@ -7,21 +7,37 @@ noise and combinations thereof).
 
 ## Quick start
 
-Open a terminal (command line) and enter the following two commands, one
-after the other:
+Hector has no graphical installer and no icon to click — everything happens
+in a terminal.  Open one (Windows: *Command Prompt* or *PowerShell*;
+macOS: *Terminal*; Linux: any shell), then **type each of the two commands
+below and press Enter**, waiting for the first to finish before starting
+the second:
+
+**Step 1 — install Hector** (requires Python 3.10 or newer with `pip`;
+on macOS install FFTW first, see *Installation* below):
 
 ```bash
 pip install hector-ts
+```
+
+Nothing works until this step has completed successfully.
+
+**Step 2 — get the examples and the manual:**
+
+```bash
 hector-examples
 ```
 
-The first command installs Hector; the second copies eight worked examples
-and the PDF user manual into a new `hector-examples` directory in your
-current location (give a different name as argument if you prefer, e.g.
-`hector-examples my_dir`).  Open `hector_manual_v3.1.pdf` first — it explains
-the workflow, all control-file parameters, and walks through every example
-step by step.  The examples are self-contained: each has its own data and
-control files ready to run.
+This copies eight worked examples and the PDF user manual into a new
+`hector-examples` directory in your current location (give a different
+name as argument if you prefer, e.g. `hector-examples my_dir`).  If the
+command is not found, step 1 did not finish successfully — read its error
+messages.
+
+Open `hector_manual_v3.1.pdf` first — it explains the workflow, all
+control-file parameters, and walks through every example step by step.
+The examples are self-contained: each has its own data and control files
+ready to run.
 
 ## Installation
 
