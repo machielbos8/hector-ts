@@ -193,7 +193,7 @@ def _load_estimatetrend_json():
 def main():
 
     print("\n*******************************************")
-    print("    estimate_all_trends, version 3.1.7.")
+    print("    estimate_all_trends, version 3.1.8.")
     print("*******************************************\n")
 
     parser = argparse.ArgumentParser(description='Estimate all trends')
