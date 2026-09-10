@@ -301,6 +301,91 @@ class Observations(metaclass=SingletonMeta):
 
 
 
+    def _regularise(self, t_raw, obs_raw, mod_raw, context):
+        """Insert NaNs so the series is equally spaced — by INDEX MAPPING.
+
+        Each epoch is placed at n_i = round((t_i - t_0)/sp), computed per row,
+        never by stepping the grid sample by sample. Stepping accumulates
+        float64 rounding across a long gap, and at high sampling rates the
+        margin vanishes: at 800 Hz sp = 1.4e-8 days, so a '# sampling period'
+        header with 12 decimals carries only ~5 significant digits and walks
+        off the grid after ~1000 missing samples. To remove exactly that
+        header quantisation, sp is first snapped to the file's own span
+        ((t_last - t_0)/N) when the two agree to 0.1%. Observed epochs are
+        kept verbatim; NaN epochs are t_0 + k*sp by multiplication.
+
+        Args:
+            t_raw (array):   epochs as read (MJD days, or seconds)
+            obs_raw (array): observations, aligned with t_raw
+            mod_raw (array): modelled values aligned with t_raw, or length 0
+            context (str):   file name for error messages
+
+        Returns:
+            (t, obs, mod) with gaps filled by NaN; also updates
+            self.sampling_period to the snapped value.
+        """
+        t_raw = np.asarray(t_raw, dtype=float)
+        obs_raw = np.asarray(obs_raw, dtype=float)
+        sp = self.sampling_period
+        t0 = float(t_raw[0])
+
+        if len(t_raw) == 1:
+            self.sampling_period = sp
+            mod = (np.asarray(mod_raw, dtype=float)
+                   if len(mod_raw) > 0 else [])
+            return t_raw.copy(), obs_raw.copy(), mod
+
+        # Two passes. Pass 1 counts the samples spanned by each consecutive
+        # pair with the STATED sp — per pair, so a stated sp with few
+        # significant digits only has to be right to half a sample over one
+        # gap, not over the whole series. The total count then refines sp
+        # against the file's own span, and pass 2 recounts with the refined
+        # value (relative error ~1e-10), which is safe for gaps of any
+        # length.
+        dt = np.diff(t_raw)
+        for _pass in (1, 2):
+            n = np.rint(dt / sp).astype(np.int64)
+            if np.any(n < 1):
+                i = int(np.flatnonzero(n < 1)[0])
+                print("Error in {0:s}: epochs {1:.10f} and {2:.10f} are less "
+                      "than half a sampling period apart. Epochs must "
+                      "increase monotonically by whole sampling periods "
+                      "(check for duplicate rows or a wrong "
+                      "'# sampling period').".\
+                      format(context, t_raw[i], t_raw[i + 1]))
+                sys.exit(1)
+            n_span = int(n.sum())
+            sp_ref = (float(t_raw[-1]) - t0) / n_span
+            if abs(sp_ref - sp) < 1.0e-3 * sp:
+                sp = sp_ref
+            else:          # stated sp inconsistent with the data: keep it
+                break
+        idx = np.concatenate(([0], np.cumsum(n)))
+        mis = np.abs(dt - n * sp)
+        worst = int(np.argmax(mis))
+        if mis[worst] > 0.01 * sp:
+            print("Error in {0:s}: the spacing between epochs {1:.10f} and "
+                  "{2:.10f} is {3:.0f}% of a sampling period off a whole "
+                  "multiple (sampling period {4:.10g}). Check the "
+                  "'# sampling period' value or for misaligned epochs.".\
+                  format(context, t_raw[worst], t_raw[worst + 1],
+                         100.0 * mis[worst] / sp, sp))
+            sys.exit(1)
+        m = int(idx[-1]) + 1
+        t = t0 + np.arange(m) * sp
+        t[idx] = t_raw                       # observed epochs stay as given
+        obs = np.full(m, np.nan)
+        obs[idx] = obs_raw
+        if len(mod_raw) > 0:
+            mod = np.full(m, np.nan)
+            mod[idx] = np.asarray(mod_raw, dtype=float)
+        else:
+            mod = []
+        self.sampling_period = sp
+        return t, obs, mod
+
+
+
     def momread(self,fname):
         """Read mom-file fname and store the data into the mom class
         
@@ -378,33 +463,17 @@ class Observations(metaclass=SingletonMeta):
                           "MJD:".format(fname, line_no))
                     print("  '{0:s}'".format(line.strip()))
                     sys.exit(1)
-                # Adaptive tolerance: 1% of period keeps float64 rounding
-                # errors out while still detecting single-sample gaps.
-                # The fixed 1e-6 d tolerance equals 54% of the period for
-                # 6 Hz data and causes false gap insertions.
+                # Gap filling happens AFTER the parse via _regularise (index
+                # mapping — robust at high sampling rates). Here only the
+                # per-line monotonicity check, so the error can name the line.
                 TINY = 0.01 * self.sampling_period
-                #--- Fill gaps with NaN's
-                if mjd_old>0.0:
-                    if mjd < mjd_old - TINY:
-                        print("Error in {0:s}, line {1:d}: epoch {2:.6f} is not "
-                              "after the previous epoch {3:.6f}. Epochs must "
-                              "increase monotonically (check for duplicate or "
-                              "out-of-order rows).".\
-                              format(fname, line_no, mjd, mjd_old))
-                        sys.exit(1)
-                    while abs(mjd-mjd_old-self.sampling_period)>TINY:
-                        mjd_old += self.sampling_period
-                        t.append(mjd_old)
-                        obs.append(np.nan)
-                        if len(cols)==3:
-                            mod.append(float(np.nan))
-                        if mjd_old>mjd-TINY:
-                            print("Error in {0:s}, line {1:d}: the spacing to epoch "
-                                  "{2:.6f} is not a whole multiple of the sampling "
-                                  "period {3:g} d. Check the '# sampling period' "
-                                  "value or for misaligned epochs.".\
-                                  format(fname, line_no, mjd, self.sampling_period))
-                            sys.exit(1)
+                if mjd_old>0.0 and mjd < mjd_old + TINY:
+                    print("Error in {0:s}, line {1:d}: epoch {2:.6f} is not "
+                          "after the previous epoch {3:.6f}. Epochs must "
+                          "increase monotonically (check for duplicate or "
+                          "out-of-order rows).".\
+                          format(fname, line_no, mjd, mjd_old))
+                    sys.exit(1)
                 t.append(mjd)
                 mjd_old = mjd
                 try:
@@ -422,6 +491,7 @@ class Observations(metaclass=SingletonMeta):
                   "lines?).".format(fname))
             sys.exit(1)
 
+        t, obs, mod = self._regularise(t, obs, mod, fname)
         self.create_dataframe_and_F(t,obs,mod,self.sampling_period)
 
 
@@ -432,7 +502,6 @@ class Observations(metaclass=SingletonMeta):
         Args:
             fname (string) : path to .ncf file
         """
-        TINY = 1.0e-7
         ncf  = NCF()
 
         time_mjd, channels, offset_data, attrs = ncf.read(fname)
@@ -465,22 +534,12 @@ class Observations(metaclass=SingletonMeta):
         #--- Offsets for this channel
         self.offsets = ncf.offsets_for_channel(offset_data, self.column_name)
 
-        #--- Gap-filling (identical logic to momread; time axis is MJD in days)
-        mjd_old = time_mjd[0]
-        t   = [time_mjd[0]]
-        obs = [self.scale_factor * y[0]]
-        for i in range(1, len(time_mjd)):
-            while time_mjd[i] - mjd_old - self.sampling_period > TINY:
-                mjd_old += self.sampling_period
-                t.append(mjd_old)
-                obs.append(np.nan)
-            if mjd_old > time_mjd[i] - TINY:
-                print('Something is very wrong here....')
-                print(' mjd={0:f}'.format(time_mjd[i]))
-                sys.exit(1)
-            t.append(time_mjd[i])
-            mjd_old = time_mjd[i]
-            obs.append(self.scale_factor * y[i])
+        #--- Gap-filling by index mapping (shared with momread). The old loop
+        #    stepped the grid with an ABSOLUTE 1e-7 d tolerance, which is
+        #    LARGER than the sampling period above ~116 Hz — high-rate NCF
+        #    files could not be read at all, and near that rate short gaps
+        #    were silently swallowed.
+        t, obs, _ = self._regularise(time_mjd, self.scale_factor * y, [], fname)
 
         self.create_dataframe_and_F(t, obs, [], self.sampling_period)
 
@@ -521,20 +580,14 @@ class Observations(metaclass=SingletonMeta):
                         sys.exit(1)
 
                     tt = float(cols[0])
-                    #--- Fill gaps with NaN's
-                    if not first_observation:
-                        while abs(tt-tt_old-self.sampling_period)>TINY:
-                            tt_old += self.sampling_period
-                            t.append(tt_old)
-                            obs.append(np.nan)
-                            if len(cols)==3:
-                                mod.append(float(np.nan))
-                            if tt_old>tt-TINY:
-                                print('Someting is very wrong here....')
-                                print('tt={0:f}'.format(tt))
-                                sys.exit(1)
-                    else:
-                        first_observation = False
+                    #--- Gap filling happens after the parse via _regularise
+                    #    (index mapping — no per-sample stepping).
+                    if not first_observation and tt <= tt_old:
+                        print('Error in {0:s}: epoch {1:f} is not after the '
+                              'previous epoch {2:f}. Epochs must increase '
+                              'monotonically.'.format(fname, tt, tt_old))
+                        sys.exit(1)
+                    first_observation = False
 
                     t.append(tt)
                     tt_old = tt
@@ -542,6 +595,10 @@ class Observations(metaclass=SingletonMeta):
                     if len(cols)==3:
                         mod.append(self.scale_factor * float(cols[2]))
 
+        if len(t)==0:
+            print("Error in {0:s}: no data rows were found.".format(fname))
+            sys.exit(1)
+        t, obs, mod = self._regularise(t, obs, mod, fname)
         self.create_dataframe_and_F(t,obs,mod,self.sampling_period)
 
         
@@ -563,7 +620,13 @@ class Observations(metaclass=SingletonMeta):
             print('--> {0:s}'.format(fname))
         
         #--- Write header
-        fp.write('# sampling period {0:.12f}\n'.format(self.sampling_period))
+        # 12 fixed decimals lose the sampling period's precision below ~1e-4
+        # days (an 800 Hz period, 1.4e-8 d, would keep 5 significant digits);
+        # switch to scientific notation there. Daily/GNSS files are unchanged.
+        if self.sampling_period >= 1.0e-4:
+            fp.write('# sampling period {0:.12f}\n'.format(self.sampling_period))
+        else:
+            fp.write('# sampling period {0:.15e}\n'.format(self.sampling_period))
 
         #--- Write header offsets
         for i in range(0,len(self.offsets)):

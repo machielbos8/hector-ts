@@ -408,6 +408,7 @@ def main():
             ('test_noise_zoo', 'run_noise_zoo_tests', 'noise-zoo'),
             ('test_ggm_fallback', 'run_ggm_fallback_tests', 'ggm-py'),
             ('test_memory_guard', 'run_memory_guard_tests', 'mem-guard'),
+            ('test_highrate_gaps', 'run_highrate_tests', 'hi-rate'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)
