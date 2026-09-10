@@ -31,10 +31,11 @@ class OLS:
             t (m*1 matrix) : first column of Toeplitz covariance matrix C
             H (m*n matrix) : design matrix
             x (m*1 matrix) : observations
-            F (m*k matrix) : special matrix to deal with missing data [not used]
+            F (m*k matrix) : special matrix to deal with missing data [not
+                             used — may be None under lazy F construction]
             samenoise (bool): use old covariance matrix or not
 
-   
+
         Returns:
             theta (n*1 matrix)    : estimated parameters
             C_theta  (n*n matrix) : covariance matrix of estimated parameters
@@ -45,8 +46,8 @@ class OLS:
         #--- Get size of matrix H
         (m,n) = H.shape
 
-        #--- Get size of matrix F which number of columns = count missing data
-        (m,k) = F.shape
+        #--- Count missing data from the NaNs; F itself is never read here.
+        k = int(np.count_nonzero(np.isnan(x)))
 
         #--- leave out rows & colums with gaps
         xm = np.zeros((m-k))

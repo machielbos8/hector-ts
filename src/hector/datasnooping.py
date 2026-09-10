@@ -232,8 +232,13 @@ class DataSnooping:
         outliers = []
         while n_outliers>0:
 
-            #--- matrix F which number of columns = count missing data
-            (m,k) = self.obs.F.shape
+            #--- count missing data directly from the NaNs: F is built lazily
+            #    and never needed here (this count also includes outliers
+            #    marked in earlier passes of THIS loop, which the stale
+            #    F.shape of the old code did not — the old code padded xm/Hm
+            #    with zero rows instead, which lstsq ignores; same answer)
+            m = self.m
+            k = int(np.isnan(self.x).sum())
 
             #--- leave out rows & colums with gaps 
             xm = np.zeros((m-k))

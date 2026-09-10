@@ -134,7 +134,7 @@ class Observations(metaclass=SingletonMeta):
         self.ssetanh = []
         self.breaks = []
         self.sampling_period = 0.0
-        self.F = None
+        self._F = None
         self.percentage_gaps = None
         self.m = 0
         self.column_name=''
@@ -237,13 +237,44 @@ class Observations(metaclass=SingletonMeta):
         if len(mod)>0:
             self.data['mod']=np.asarray(mod)
             
-        #--- Create special missing data matrix F
+        #--- The dense missing-data matrix F (m x n_gaps) is built LAZILY:
+        #    only the AmmarGrag solver reads it. OLS (pure white noise) and
+        #    FullCov never touch it, so a long series with many gaps — where
+        #    F would not fit in memory — can still be analysed with those
+        #    methods. The gaps themselves are fully described by the NaNs in
+        #    the data, from which _build_F derives F on first access.
         self.m = len(self.data.index)
+        self._F = None
+
+        #--- Compute percentage of gaps
         n = int(self.data['obs'].isna().sum())
-        # Dense F is m x n_gaps float64, so a long series with many gaps can
-        # request more than the machine has (~120 GB for 4M epochs at 40%
-        # gaps). Linux refuses the overcommit and kills the process; fail
-        # early with a clear message instead. Same 85% rule as set_NaN.
+        self.percentage_gaps = 100.0 * float(n) /float(self.m)
+
+
+
+    @property
+    def F(self):
+        """Dense missing-data matrix (m x n_gaps), built on first access."""
+        if self._F is None:
+            self._build_F()
+        return self._F
+
+    @F.setter
+    def F(self, value):
+        self._F = value
+
+
+
+    def _build_F(self):
+        """Materialise F from the NaNs in the data.
+
+        Dense F is m x n_gaps float64, so a long series with many gaps can
+        request more than the machine has (~120 GB for 4M epochs at 40%
+        gaps). Linux refuses the overcommit and kills the process; fail
+        early with a clear message instead. Same 85% rule as set_NaN.
+        """
+        isnan = self.data['obs'].isna().to_numpy()
+        n = int(isnan.sum())
         needed = self.m * n * 8
         avail = _avail_ram()
         if avail > 0 and needed > avail * 0.85:
@@ -251,24 +282,22 @@ class Observations(metaclass=SingletonMeta):
                 f"gap matrix F ({self.m} x {n}) needs {needed / 1e9:.1f} GB "
                 f"but only {avail / 1e9:.1f} GB is available: the series has "
                 f"{100.0 * n / self.m:.1f}% missing epochs, which the dense "
-                f"gap representation cannot hold at this length. Shorten or "
-                f"decimate the series, or fill the gaps."
+                f"gap representation (needed by the AmmarGrag method) cannot "
+                f"hold at this length. Use LikelihoodMethod FullCov, or a "
+                f"pure White noise model, which do not need this matrix; or "
+                f"shorten the series."
             )
         try:
-            self.F = np.zeros((self.m,n))
+            self._F = np.zeros((self.m, n))
         except MemoryError:
             raise MemoryError(
                 f"gap matrix F ({self.m} x {n}) needs {needed / 1e9:.1f} GB, "
                 f"which could not be allocated."
             ) from None
-        j=0
-        for i in range(0,self.m):
-            if np.isnan(self.data.iloc[i,0])==True:
-                self.F[i,j]=1.0
-                j += 1
-
-        #--- Compute percentage of gaps
-        self.percentage_gaps = 100.0 * float(n) /float(self.m)
+        j = 0
+        for i in np.flatnonzero(isnan):
+            self._F[i, j] = 1.0
+            j += 1
 
 
 
@@ -718,6 +747,10 @@ class Observations(metaclass=SingletonMeta):
 
         self.data.iloc[index, 0] = np.nan
         if not update_F:
+            return
+        if self._F is None:
+            # F has not been materialised: the NaN just written is all that
+            # is needed — a later _build_F derives every gap from the data.
             return
         k = self.F.shape[1]
         # Peak memory during np.c_: old F stays in memory while new (k+1)-column

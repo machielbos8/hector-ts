@@ -64,15 +64,17 @@ class MLE:
         des = DesignMatrix()
         self.cov = Covariance()
 
-        #--- Copy observations and design matrix into class 
+        #--- Copy observations and design matrix into class. The dense gap
+        #    matrix F is fetched further down, only when the chosen method
+        #    (AmmarGrag) actually needs it: OLS and FullCov never read it,
+        #    and for a long series with many gaps it may not fit in memory.
         self.x   = obs.data['obs'].to_numpy()
         self.H   = des.H
-        self.F   = obs.F
 
-        (m,k) = self.F.shape
+        k = int(np.isnan(self.x).sum())
         (m,n) = self.H.shape
-        self.m = m 
-        self.n = n 
+        self.m = m
+        self.n = n
         self.N = self.m - k
 
         #--- important variables
@@ -118,6 +120,13 @@ class MLE:
         else:
             self.method = AmmarGrag()
             label = 'AmmarGrag'
+
+        #--- Only AmmarGrag consumes F; materialising it for the others would
+        #    defeat the lazy construction in Observations.
+        if isinstance(self.method, AmmarGrag):
+            self.F = obs.F
+        else:
+            self.F = None
 
         if self.verbose==True:
             print('----------------\n  {0}\n----------------'.format(label))
@@ -371,7 +380,8 @@ class MLE:
         #--- Fast path: AmmarGrag → whiten fixed cols once, slide Heaviside.
         #    No-gap: O(n_fixed × m) scan.  With gaps: O(m·k²) incremental update.
         #    Both beat the O(m² log m) naive loop.
-        (m, k) = self.F.shape
+        #    k from the NaNs, not from F: F is None for OLS/FullCov (lazy).
+        k = int(np.isnan(self.x).sum())
         if isinstance(self.method, AmmarGrag) and k == 0:
             return list(self.method.fast_epoch_scan(
                 self.H, self.x, self.N, self.useRMLE, offset_index))
