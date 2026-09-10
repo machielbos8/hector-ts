@@ -29,10 +29,15 @@ Run standalone:
 It is also invoked by ``run_examples.py`` as the 'hi-rate' section.
 """
 
+import contextlib
+import io
+import json
 import math
 import os
-import sys
+import shutil
+import subprocess
 import tempfile
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -57,6 +62,25 @@ def _bare_obs():
     o.use_residuals = False
     o.ts_format = 'mom'
     return o
+
+
+def _expect_refusal(call, fragments):
+    """Run `call`; it must sys.exit(non-zero) after printing one of `fragments`.
+
+    Returns (ok, printed_output). A reader that silently ACCEPTS uneven
+    sampling is the dangerous failure mode — the grid would be non-uniform
+    and every Toeplitz-based solver quietly wrong. Which of the two clear
+    errors fires (off-grid spacing, or epochs closer than half a period)
+    depends on where the unevenness lands; both are correct refusals.
+    """
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            call()
+    except SystemExit as e:
+        out = buf.getvalue()
+        return (e.code not in (0, None)) and any(f in out for f in fragments), out
+    return False, "reader accepted the file (no error raised)"
 
 
 def run_highrate_tests(verbose=True):
@@ -157,6 +181,121 @@ def run_highrate_tests(verbose=True):
         _check("momwrite -> momread round-trip: no phantom gaps",
                o3.m == 2000 and int(o3.data['obs'].isna().sum()) == 0,
                f"m={o3.m}, nan={int(o3.data['obs'].isna().sum())}")
+
+    # ── uneven sampling must be REFUSED, never silently regularised ────────
+    sp = 1.0 / 800.0 / 86400.0
+    Nj = 2000
+    rng = np.random.default_rng(20260910)
+
+    def _write_mom(tmp, tt, header_sp=None):
+        fn = os.path.join(tmp, "bad.mom")
+        with open(fn, "w") as fp:
+            fp.write(f"# sampling period {(header_sp or sp):.15e}\n")
+            for ti in tt:
+                fp.write(f"{ti:.16e} 1.0\n")
+        return fn
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # (a) random jitter of ±30% of a period on every epoch
+        tj = np.arange(Nj) * sp + rng.uniform(-0.3, 0.3, Nj) * sp
+        tj.sort()
+        fn = _write_mom(tmp, tj)
+        o = _bare_obs()
+        ok, out = _expect_refusal(lambda: o.momread(fn),
+                                  ("off a whole multiple", "half a sampling period apart"))
+        _check("mom: jittered (uneven) epochs are refused with a clear error",
+               ok, out.strip()[-160:])
+
+        # (b) one epoch exactly half a period off the grid
+        th = np.arange(Nj) * sp
+        th[Nj // 2] += 0.5 * sp
+        fn = _write_mom(tmp, th)
+        o = _bare_obs()
+        ok, out = _expect_refusal(lambda: o.momread(fn),
+                                  ("off a whole multiple", "half a sampling period apart"))
+        _check("mom: a single half-period-shifted epoch is refused", ok,
+               out.strip()[-160:])
+
+        # (c) header sampling period wrong by 5% (outside the 0.1% snap
+        #     acceptance): must refuse, not silently rescale the grid
+        tr = np.arange(Nj) * sp
+        fn = _write_mom(tmp, tr, header_sp=1.05 * sp)
+        o = _bare_obs()
+        ok, out = _expect_refusal(lambda: o.momread(fn),
+                                  ("off a whole multiple", "half a sampling period apart"))
+        _check("mom: a 5%-wrong '# sampling period' header is refused", ok,
+               out.strip()[-160:])
+
+        # (d) the same jittered axis through the NCF reader
+        fn = os.path.join(tmp, "bad.ncf")
+        NCF().write(fn, 60000.0 + np.arange(Nj) * 1.0e-3
+                    + rng.uniform(-0.3, 0.3, Nj) * 1.0e-3,
+                    {"u": np.ones(Nj)}, attrs={"sampling_period": 1.0e-3})
+        o = _bare_obs()
+        ok, out = _expect_refusal(lambda: o.ncfread(fn),
+                                  ("off a whole multiple", "half a sampling period apart"))
+        _check("ncf: jittered (uneven) epochs are refused with a clear error",
+               ok, out.strip()[-160:])
+
+    # ── the full 800 Hz case: 40% gaps, F would be 155 GB, White noise ─────
+    #    combines the high-rate fix (relative-days axis, exact gap counting)
+    #    with the lazy F fix (the analysis never touches the impossible
+    #    matrix). This is the real shape of the MS1002A problem.
+    m_big, keep = 220_000, 3            # keep 3 of every 5 -> 40% gaps
+    sp = 1.0 / 800.0 / 86400.0
+    i = np.arange(m_big)
+    sel = (i % 5) < keep
+    m_eff = int(i[sel][-1]) + 1        # trailing dropped samples are unknowable
+    k_eff = m_eff - int(sel.sum())
+    f_gb = m_eff * k_eff * 8 / 1e9
+    t = i[sel] * sp                     # RELATIVE days axis (starts at 0)
+    # slope 1000 mm/DAY: strong enough to measure over a 4.6-minute record
+    val = 1000.0 * t + rng.normal(0.0, 1.0, sel.sum())
+    if verbose:
+        print(f"    -- 800 Hz end-to-end: m={m_eff}, {k_eff} gaps (40%), "
+              f"F would be {f_gb:.0f} GB --")
+    exe = shutil.which("estimatetrend")
+    cmd = ([exe, "-i", "run.ctl"] if exe else
+           [sys.executable, "-c",
+            "import sys; sys.argv=['estimatetrend','-i','run.ctl'];"
+            "from hector.estimatetrend import main; main()"])
+    with tempfile.TemporaryDirectory() as tmp:
+        with open(os.path.join(tmp, "data.mom"), "w") as fp:
+            fp.write(f"# sampling period {sp:.15e}\n")
+            np.savetxt(fp, np.column_stack([t, val]), fmt="%.16e %.4f")
+        Path(tmp, "run.ctl").write_text(
+            "DataFile        data.mom\n"
+            "DataDirectory   .\n"
+            "OutputFile      out.mom\n"
+            "PhysicalUnit    mm\n"
+            "TimeUnit        days\n"
+            "ScaleFactor     1.0\n"
+            "Verbose         no\n"
+            "NoiseModels     White\n")
+        try:
+            r = subprocess.run(cmd, cwd=tmp, capture_output=True, text=True,
+                               timeout=600)
+            ej = Path(tmp, "estimatetrend.json")
+            gappct = trend = float('nan')
+            if ej.is_file():
+                j = json.loads(ej.read_text())
+                gappct = j.get('gap_percentage', float('nan'))
+                trend = j.get('trend', float('nan'))
+            _check(f"800 Hz, {f_gb:.0f} GB-F series: estimatetrend (White) "
+                   f"completes", r.returncode == 0,
+                   (r.stdout + r.stderr).strip()[-200:])
+            truth = 1000.0 * 365.25          # mm/yr
+            _check("... exact gap percentage (40%)",
+                   abs(gappct - 100.0 * k_eff / m_eff) < 1e-6,
+                   f"gap% {gappct}")
+            _check("... and recovers the trend (1000 mm/day)",
+                   np.isfinite(trend) and abs(trend - truth) < 0.01 * truth,
+                   f"trend {trend}")
+        except subprocess.TimeoutExpired:
+            _check(f"800 Hz, {f_gb:.0f} GB-F series: estimatetrend (White) "
+                   f"completes", False, "timed out after 600 s")
+            _check("... exact gap percentage (40%)", False)
+            _check("... and recovers the trend (1000 mm/day)", False)
 
     return all(checks)
 
