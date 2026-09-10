@@ -215,6 +215,64 @@ def run_memory_guard_tests(verbose=True):
     finally:
         hobs._AVAIL_RAM_BYTES = saved
 
+    # 7. THE REAL THING — no RAM patching. A series at the scale that
+    #    produced the original report (Francisco's 0.985 Hz gravimeter set:
+    #    ~220k epochs of which ~40% end up flagged): m=220,000 with 40%
+    #    gaps, so F would be 220,000 x 88,000 x 8 B = 155 GB. Run the real
+    #    estimatetrend CLI with NoiseModels White: under lazy F this is an
+    #    OLS problem that completes in seconds; any code path that touches
+    #    F makes the guard refuse (or, pre-guard, Linux overcommit kills
+    #    the process) and the exit code goes non-zero.
+    m_big, keep = 220_000, 3          # keep 3 of every 5 epochs -> 40% gaps
+    rng = np.random.default_rng(20260910)
+    i = np.arange(m_big)
+    sel = (i % 5) < keep
+    mjd = 58000.0 + i[sel]
+    val = 5.0 * i[sel] / 365.25 + rng.normal(0.0, 1.0, sel.sum())
+    k_big = m_big - int(sel.sum())
+    f_gb = m_big * k_big * 8 / 1e9
+    if verbose:
+        print(f"    -- Francisco-scale run: m={m_big}, {k_big} gaps "
+              f"({100.0 * k_big / m_big:.0f}%), F would be {f_gb:.0f} GB --")
+    import shutil
+    import subprocess
+    exe = shutil.which("estimatetrend")
+    cmd = ([exe, "-i", "run.ctl"] if exe else
+           [sys.executable, "-c",
+            "import sys; sys.argv=['estimatetrend','-i','run.ctl'];"
+            "from hector.estimatetrend import main; main()"])
+    with tempfile.TemporaryDirectory() as tmp:
+        with open(os.path.join(tmp, "data.mom"), "w") as fp:
+            fp.write("# sampling period 1.0\n")
+            np.savetxt(fp, np.column_stack([mjd, val]), fmt="%.1f %.4f")
+        Path(tmp, "run.ctl").write_text(
+            "DataFile        data.mom\n"
+            "DataDirectory   .\n"
+            "OutputFile      out.mom\n"
+            "PhysicalUnit    mm\n"
+            "TimeUnit        days\n"
+            "ScaleFactor     1.0\n"
+            "Verbose         no\n"
+            "NoiseModels     White\n")
+        try:
+            r = subprocess.run(cmd, cwd=tmp, capture_output=True, text=True,
+                               timeout=600)
+            out = r.stdout + r.stderr
+            _check(f"estimatetrend (White) completes on the {f_gb:.0f} GB-F "
+                   f"series", r.returncode == 0, out.strip()[-300:])
+            trend = float('nan')
+            ej = Path(tmp, "estimatetrend.json")
+            if ej.is_file():
+                import json
+                trend = json.loads(ej.read_text()).get('trend', float('nan'))
+            _check("... and recovers the trend (5 mm/yr)",
+                   np.isfinite(trend) and abs(trend - 5.0) < 0.5,
+                   f"trend {trend}")
+        except subprocess.TimeoutExpired:
+            _check(f"estimatetrend (White) completes on the {f_gb:.0f} GB-F "
+                   f"series", False, "timed out after 600 s")
+            _check("... and recovers the trend (5 mm/yr)", False)
+
     return all(checks)
 
 
