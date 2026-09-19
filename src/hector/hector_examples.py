@@ -26,3 +26,7 @@ def main():
     print("  ex6  Multi-station offset detection from NGL tenv files")
     print("  ex7  Piecewise linear (multi-trend) estimation")
     print("  ex8  Toeplitz factorisation: Levinson vs Generalised Schur (Jupyter)")
+    if (dest / "paper_scripts").is_dir():
+        print("  paper_scripts  Numerical experiments of the paper")
+        print('                 "Faster analysis of GNSS time series"')
+        print("                 (see paper_scripts/README.md; driver: run_all.py)")

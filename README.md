@@ -28,11 +28,24 @@ Nothing works until this step has completed successfully.
 hector-examples
 ```
 
-This copies eight worked examples and the PDF user manual into a new
-`hector-examples` directory in your current location (give a different
-name as argument if you prefer, e.g. `hector-examples my_dir`).  If the
-command is not found, step 1 did not finish successfully — read its error
-messages.
+This copies eight worked examples, the PDF user manual, and the
+`paper_scripts` directory into a new `hector-examples` directory in your
+current location (give a different name as argument if you prefer, e.g.
+`hector-examples my_dir`).  If the command is not found, step 1 did not
+finish successfully — read its error messages.
+
+The `paper_scripts` directory contains the numerical experiments of the
+paper *"Faster analysis of GNSS time series"* (Journal of Geodesy),
+together with the raw results measured for the paper, so every figure
+can be re-created directly and every benchmark re-run:
+
+```bash
+cd hector-examples/paper_scripts
+python3 run_all.py            # smoke tests + all paper figures (~5 min)
+python3 run_all.py --full     # regenerate the raw results (hours)
+```
+
+See `paper_scripts/README.md` for details.
 
 Open `hector_manual_v3.1.pdf` first — it explains the workflow, all
 control-file parameters, and walks through every example step by step.
@@ -124,20 +137,22 @@ Hector v3.1 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.c
 The core Toeplitz factorisation uses the Generalised Schur Algorithm (O(*n* log²*n*))
 instead of Durbin-Levinson (O(*n*²)), and data gaps are handled exactly with an
 FFT-based conjugate-gradient solver. The speedup over C++ v2.2 grows with series
-length — up to ~27× at 40 years without gaps, and ~10× with 10% gaps:
+length — up to ~24× at 40 years without gaps, and ~10× with 10% gaps:
 
 | Series | Gaps | Hector v3.1 (s) | Hector C++ v2.2 (s) | Speedup |
 |:---    |  ---:|             ---:|                 ---:|    ---: |
-| 10 yr  |   0% |            1.11 |                 2.9 |    2.6× |
-| 20 yr  |   0% |            1.60 |                 6.6 |    4.1× |
-| 30 yr  |   0% |            2.32 |                21.8 |    9.4× |
-| 40 yr  |   0% |            2.58 |                68.7 |   26.6× |
-| 10 yr  |  10% |            2.36 |                 4.5 |    1.9× |
-| 20 yr  |  10% |            4.36 |                16.5 |    3.8× |
-| 30 yr  |  10% |            9.16 |                51.7 |    5.6× |
-| 40 yr  |  10% |           14.44 |               150.1 |   10.4× |
+| 10 yr  |   0% |            1.13 |                 3.0 |    2.7× |
+| 20 yr  |   0% |            1.54 |                 7.0 |    4.5× |
+| 30 yr  |   0% |            2.32 |                25.3 |   10.9× |
+| 40 yr  |   0% |            2.73 |                64.8 |   23.8× |
+| 10 yr  |  10% |            2.32 |                 4.5 |    1.9× |
+| 20 yr  |  10% |            4.44 |                16.4 |    3.7× |
+| 30 yr  |  10% |            9.73 |                60.5 |    6.2× |
+| 40 yr  |  10% |           14.22 |               146.3 |   10.3× |
 
-*Benchmarked on Apple M4 Pro, GGM+White noise model, including offset estimation.*
+*Median of ten realisations on Apple M4 Pro, GGM+White noise model,
+including offset estimation — the same run as Table 2 of the paper.
+Reproduce with `hector-examples` → `paper_scripts/run_all.py`.*
 
 ## License
 

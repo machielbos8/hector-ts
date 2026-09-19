@@ -24,6 +24,7 @@
 
 import numpy as np
 import math
+import sys
 import time
 from numpy import fft
 from numpy.linalg import inv
@@ -75,7 +76,15 @@ class Schur(metaclass=SingletonMeta):
         falls back to Levinson otherwise.
         """
         if _USE_CYTHON_GSA:
-            return self._gsa_cy.compute_for_toeplitz(t)
+            try:
+                return self._gsa_cy.compute_for_toeplitz(t)
+            except FloatingPointError as e:
+                # A reflection coefficient left (-1, 1): the matrix is at or
+                # beyond the numerical positive-definiteness boundary.  The
+                # Durbin-Levinson recursion is weakly stable and may still
+                # deliver a usable factorisation where the GSA gives up.
+                print(f"{e}  Falling back to Durbin-Levinson.",
+                      file=sys.stderr)
         from hector.levinson import Levinson
         return Levinson().compute(t)
 

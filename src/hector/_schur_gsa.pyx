@@ -96,6 +96,7 @@ cdef class SchurGSA:
     cdef list    _ws_storage   # keeps numpy arrays (and thus data ptrs) alive
     cdef int     _cached_tm    # workspace is valid for this tm; -1 = uninitialised
     cdef bytes   _wisdom_bytes # wisdom file path (bytes) for lazy re-export; None if unused
+    cdef int     _breakdown    # set by _gsa when a reflection coefficient leaves (-1, 1)
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
@@ -369,6 +370,15 @@ cdef class SchurGSA:
         if tm == 1:
             gamma      = -p_0[0] / q_0[0]
             delta_step = 1.0 - gamma * gamma
+            # For a positive-definite Toeplitz matrix every reflection
+            # coefficient satisfies |gamma| < 1 (Cybenko 1980).  delta_step
+            # <= 0 (or NaN, from q_0[0] == 0) means the matrix is not
+            # numerically positive definite at this step: flag it and keep
+            # the recursion finite; compute_for_toeplitz raises at the top.
+            if not (delta_step > 0.0):
+                self._breakdown = 1
+                gamma = 0.0
+                delta_step = 1.0
             out_a[0] = 0.0;  out_a[1] = 1.0
             out_c[0] = 0.0;  out_c[1] = -gamma
             ln_det_out[0] = (total_tm - offset) * c_log(delta_step)
@@ -431,11 +441,16 @@ cdef class SchurGSA:
         out_c_np = np.empty(tm + 1, dtype=np.float64)
         p_0_v = p_0_np;  q_0_v = q_0_np
         out_a_v = out_a_np;  out_c_v = out_c_np
+        self._breakdown = 0
         delta = self._gsa(
             tm, 0, tm,
             &p_0_v[0], &q_0_v[0],
             0, &out_a_v[0], &out_c_v[0], &ln_det_dummy,
         )
+        if self._breakdown:
+            raise FloatingPointError(
+                "GSA breakdown: a reflection coefficient left (-1, 1); "
+                "the generator pair is not numerically positive definite.")
         return (out_a_np, out_c_np, delta)
 
     def compute_for_toeplitz(self, t):
@@ -451,6 +466,11 @@ cdef class SchurGSA:
         m  = t_arr.shape[0]
         tm = m - 1
         t0 = t_arr[0]
+
+        if not t0 > 0.0:
+            raise FloatingPointError(
+                "GSA breakdown: t[0] <= 0; the autocovariance sequence "
+                "cannot belong to a positive-definite Toeplitz matrix.")
 
         # Check that tm fits within the pre-allocated plan range.
         # Required plan index: ceil(log2(tm)) + 1.  For tm ≥ 2^(N_PLANS-2),
@@ -478,8 +498,13 @@ cdef class SchurGSA:
         out_c = out_c_np
 
         ln_det_accum = 0.0
+        self._breakdown = 0
         delta_tm = self._gsa(tm, 0, tm, &p_0[0], &q_0[0], 0,
                              &out_a[0], &out_c[0], &ln_det_accum)
+        if self._breakdown:
+            raise FloatingPointError(
+                "GSA breakdown: a reflection coefficient left (-1, 1); "
+                "the Toeplitz matrix is not numerically positive definite.")
 
         l1_np = np.empty(m, dtype=np.float64)
         l2_np = np.empty(m, dtype=np.float64)
