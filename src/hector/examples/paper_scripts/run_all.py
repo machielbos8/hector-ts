@@ -113,10 +113,26 @@ def main():
         print("\nFULL mode: regenerating raw results.  The gap sweep is")
         print("checkpointed (gap_sweep_results.jsonl) and may be interrupted")
         print("and resumed by re-running this script.")
+        run_cmp = bool(tools["estimatetrend_2.2"] and tools["Rscript"]
+                       and tools["gmwmx2 (R package)"])
+        # The shipped result files double as resume checkpoints, so they must
+        # be set aside once or nothing would be recomputed.  On the first
+        # --full invocation each is renamed to <name>.m4-shipped; on later
+        # invocations the active file is the user's own (partial) run and is
+        # kept, so interrupted experiments resume.
+        shipped = [stab / "stability_results.jsonl",
+                   sweep / "gap_sweep_results.jsonl"]
+        if run_cmp:
+            shipped += [cmp_ / "comparison_results.json",
+                        cmp_ / "cpp_comparison_results.json"]
+        for f in shipped:
+            keep = f.with_suffix(f.suffix + ".m4-shipped")
+            if f.exists() and not keep.exists():
+                f.rename(keep)
+                print(f"  shipped results set aside: {keep.name}")
         ok &= run([PY, "run_stability.py"], stab, "stability experiment")
         ok &= run([PY, "run_gap_sweep.py"], sweep, "gap-fraction sweep")
-        if tools["estimatetrend_2.2"] and tools["Rscript"] \
-                and tools["gmwmx2 (R package)"]:
+        if run_cmp:
             ok &= run([PY, "run_comparison.py"], cmp_, "Hector vs gmwmx2")
             ok &= run([PY, "run_vs_cpp.py"], cmp_, "Hector v3 vs C++ v2.2")
         else:

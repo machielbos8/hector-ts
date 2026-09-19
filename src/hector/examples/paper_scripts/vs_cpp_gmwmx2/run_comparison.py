@@ -303,12 +303,7 @@ def make_figure(results):
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if ("--replot" not in sys.argv
-            and not Path("pre_files").exists()
-            and not Path("obs_files").exists()):
-        print("Run from the vs_cpp_gmwmx2 directory (pre_files/ will be "
-              "created), or use --replot with the shipped results.")
-        sys.exit(1)
+    # pre_files/ is created on demand by run_all(); no precondition needed.
 
     t_total = time.perf_counter()
 
