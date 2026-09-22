@@ -44,7 +44,8 @@ GAP_PCTS     = [0.0, 10.0]
 N_SIM        = 10             # paper revision (v3.1); run_comparison.py generates the series
 
 HECTORP_BIN  = shutil.which("estimatetrend") or str(Path(sys.executable).parent / "estimatetrend")
-CPP_BIN      = "/usr/local/bin/estimatetrend_2.2"
+CPP_BIN      = (shutil.which("estimatetrend_2.2")
+                or "/usr/local/bin/estimatetrend_2.2")
 
 PRE_DIR      = Path(__file__).parent / "pre_files"
 FIN_DIR      = Path(__file__).parent / "fin_files"

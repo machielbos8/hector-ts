@@ -19,9 +19,30 @@ paper (Apple M4, macOS), so every figure can be re-created immediately:
 
 Timing values are machine-dependent; the paper's conclusions rest on the
 scaling with series length and gap fraction, which any machine reproduces.
-The v2.2 and gmwmx2 timing comparisons additionally require the Hector C++
-binary (`estimatetrend_2.2`) and R with the `gmwmx2` package; they are
-skipped automatically when absent.  `gap_sweep/station_gap_blocks.json`
+
+## Optional external tools (only for the vs_cpp_gmwmx2 comparisons)
+
+Everything except the two timing *comparisons* is pure Python and needs
+only the hector-ts package.  The comparisons of the paper's Figs. 4-5
+additionally require:
+
+  - **Hector C++ v2.2** (https://teromovigo.com/hector/): the
+    `estimatetrend` binary of that version must be reachable on your
+    PATH under the name `estimatetrend_2.2` (or at
+    `/usr/local/bin/estimatetrend_2.2`), so that it does not collide
+    with the Python `estimatetrend`.
+  - **R with the gmwmx2 package**: `Rscript` on the PATH and
+    `install.packages("gmwmx2")` (CRAN; see
+    https://github.com/SMAC-Group/gmwmx2).  The scripts call it
+    non-interactively through `gmwmx2_runner.R`.
+
+`run_all.py --check` reports which of these are found.  When either is
+missing, `run_all.py --full` prints a SKIPPED notice for both comparison
+runs (they share their synthetic series, so they run as a pair) and
+continues with everything else; the comparison figures are then re-drawn
+from the shipped results instead.  Nothing crashes in their absence.
+
+`gap_sweep/station_gap_blocks.json`
 holds the observed gap-block lengths of eight European IGS stations
 (extracted from Nevada Geodetic Laboratory tenv files) used to generate
 realistic clustered gap patterns.
