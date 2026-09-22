@@ -63,13 +63,14 @@ def run(cmd, cwd, label):
 
 
 def check_tools(verbose=True):
+    sys.path.insert(0, str(HERE))
+    from setup_tools import load_tools
+    cfg = load_tools()          # tools.json first, then PATH autodetection
+
     tools = {}
     tools["estimatetrend"] = shutil.which("estimatetrend")
-    tools["estimatetrend_2.2"] = (shutil.which("estimatetrend_2.2")
-                                  or (Path("/usr/local/bin/estimatetrend_2.2")
-                                      .exists() or None)
-                                  and "/usr/local/bin/estimatetrend_2.2")
-    rscript = shutil.which("Rscript")
+    tools["estimatetrend_2.2"] = cfg["estimatetrend_2.2"]
+    rscript = cfg["rscript"]
     tools["Rscript"] = rscript
     tools["gmwmx2 (R package)"] = None
     if rscript:
@@ -85,6 +86,9 @@ def check_tools(verbose=True):
         print("\nHector itself is required (pip install hector-ts); the")
         print("v2.2 and gmwmx2 comparisons are skipped when their tools")
         print("are missing -- all other experiments are pure Python.")
+        if not (tools["estimatetrend_2.2"] and tools["gmwmx2 (R package)"]):
+            print("If they ARE installed but not found, or found wrongly:")
+            print("run  python3 setup_tools.py  to point at them explicitly.")
     return tools
 
 

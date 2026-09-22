@@ -36,11 +36,16 @@ additionally require:
     https://github.com/SMAC-Group/gmwmx2).  The scripts call it
     non-interactively through `gmwmx2_runner.R`.
 
-`run_all.py --check` reports which of these are found.  When either is
-missing, `run_all.py --full` prints a SKIPPED notice for both comparison
-runs (they share their synthetic series, so they run as a pair) and
-continues with everything else; the comparison figures are then re-drawn
-from the shipped results instead.  Nothing crashes in their absence.
+`run_all.py --check` reports which of these are found.  If a tool is
+installed under a different name or location, run `python3
+setup_tools.py`: it searches, validates (rejecting the Hector v3
+`estimatetrend` if pointed at it by mistake), asks for paths where
+needed, and stores the result in `tools.json`, which all scripts consult
+first.  When a tool is missing, `run_all.py --full` prints a SKIPPED
+notice for both comparison runs (they share their synthetic series, so
+they run as a pair) and continues with everything else; the comparison
+figures are then re-drawn from the shipped results instead.  Nothing
+crashes in their absence.
 
 `gap_sweep/station_gap_blocks.json`
 holds the observed gap-block lengths of eight European IGS stations

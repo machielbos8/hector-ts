@@ -44,8 +44,20 @@ GAP_PCTS     = [0.0, 10.0]
 N_SIM        = 10             # paper revision (v3.1); run_comparison.py generates the series
 
 HECTORP_BIN  = shutil.which("estimatetrend") or str(Path(sys.executable).parent / "estimatetrend")
-CPP_BIN      = (shutil.which("estimatetrend_2.2")
-                or "/usr/local/bin/estimatetrend_2.2")
+def _tool(name, fallback):
+    """tools.json (written by ../setup_tools.py) first, then PATH."""
+    cfg_path = Path(__file__).parent.parent / "tools.json"
+    if cfg_path.exists():
+        try:
+            v = json.loads(cfg_path.read_text()).get(name)
+            if v:
+                return v
+        except json.JSONDecodeError:
+            pass
+    return shutil.which(name) or fallback
+
+CPP_BIN      = _tool("estimatetrend_2.2",
+                     "/usr/local/bin/estimatetrend_2.2")
 
 PRE_DIR      = Path(__file__).parent / "pre_files"
 FIN_DIR      = Path(__file__).parent / "fin_files"

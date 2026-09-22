@@ -63,7 +63,19 @@ HECTORP_BIN  = shutil.which("estimatetrend") or str(Path(sys.executable).parent 
 RNG_SEED     = 123
 PRE_DIR      = Path("pre_files")
 FIN_DIR      = Path("fin_files")
-RSCRIPT      = shutil.which("Rscript") or "/usr/local/bin/Rscript"
+def _tool(name, which_name, fallback):
+    """tools.json (written by ../setup_tools.py) first, then PATH."""
+    cfg_path = Path(__file__).parent.parent / "tools.json"
+    if cfg_path.exists():
+        try:
+            v = json.loads(cfg_path.read_text()).get(name)
+            if v:
+                return v
+        except json.JSONDecodeError:
+            pass
+    return shutil.which(which_name) or fallback
+
+RSCRIPT      = _tool("rscript", "Rscript", "/usr/local/bin/Rscript")
 R_RUNNER     = Path(__file__).parent / "gmwmx2_runner.R"
 RESULTS_FILE = Path("comparison_results.json")
 FIG_FILE     = Path("comparison_figure.png")
