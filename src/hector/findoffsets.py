@@ -61,7 +61,7 @@ def main():
 
     if verbose:
         print("\n***************************************")
-        print("    findoffsets, version 3.1.9.")
+        print("    findoffsets, version 3.1.10.")
         print("***************************************")
 
     #--- Optional offset-detection parameters

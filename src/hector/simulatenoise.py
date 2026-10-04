@@ -182,8 +182,13 @@ def create_h(m,noisemodel,dt,ts_format,control):
         #--- create gamma_x
         t = np.zeros(m)
 
-        #--- Constant
-        alpha = 2.0*d
+        #--- Constant (alpha=d, see matern.py)
+        alpha = d
+        if alpha<=0.5:
+            print('Matern: kappa = {0:f} is not allowed, a Matern process '
+                  'needs kappa < -1 (alpha > 1/2).'.format(-2.0*alpha),
+                  file=sys.stderr)
+            sys.exit(1)
         c0 = 2.0/(math.gamma(alpha-0.5) * pow(2.0, alpha-0.5))
 
         #--- Use Modified Bessel Function, second order
@@ -193,7 +198,7 @@ def create_h(m,noisemodel,dt,ts_format,control):
         while i<m:
             if tau>threshold/lamba:
                 #--- Eq. (61)
-                t[i] = c0*math.sqrt(math.pi/2.0)*pow(lamba*tau,alpha-0.5)\
+                t[i] = c0*math.sqrt(math.pi/2.0)*pow(lamba*tau,alpha-1.0)\
                                                         * math.exp(-lamba*tau)
             else:
                 #--- Eq. (60)
@@ -236,7 +241,7 @@ def create_h(m,noisemodel,dt,ts_format,control):
 def main():
 
     print("\n***************************************")
-    print("    simulatenoise, version 3.1.9.")
+    print("    simulatenoise, version 3.1.10.")
     print("***************************************")
 
     #--- Parse command line arguments in a bit more professional way

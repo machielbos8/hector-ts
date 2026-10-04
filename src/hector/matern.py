@@ -50,7 +50,15 @@ class Matern:
         self.Nparam = 2
         if not math.isnan(self.d_fixed):
             self.Nparam -= 1
-            self.alpha_fixed = 2.0*self.d_fixed
+            self.alpha_fixed = self.d_fixed
+            if self.alpha_fixed<=0.5:
+                print('Matern: kappa_fixed = {0:f} is not allowed, a Matern '
+                      'process needs kappa < -1 (alpha > 1/2). Note that '
+                      'since version 3.1.10 kappa is the true spectral '
+                      'slope: multiply kappa values used with older '
+                      'versions by two.'.format(-2.0*self.alpha_fixed),
+                      file=sys.stderr)
+                sys.exit(1)
             print('alpha fixed to : {0:f}'.format(self.alpha_fixed))
         else:
             self.alpha_fixed = math.nan
@@ -76,8 +84,8 @@ class Matern:
         if self.Nparam == 0:
             return p0
         if self.Nparam == 2 or (self.Nparam == 1 and math.isnan(self.alpha_fixed)):
-            p0.append(0.5)    # alpha: midpoint of [0.251, 0.75)
-        if self.Nparam == 2 or (self.Nparam == 1 and math.isnan(self.labda_fixed)):
+            p0.append(1.0)    # d=alpha: midpoint of [0.501, 1.4999]
+        if self.Nparam == 2 or (self.Nparam == 1 and math.isnan(self.lambda_fixed)):
             p0.append(1.0)    # labda: positive scale, no upper bound
         return p0
 
@@ -106,7 +114,6 @@ class Matern:
         #--- extract parameters to readable variables
         if self.Nparam==0:
             d     = self.d_fixed
-            alpha = 2.0*d
             lamba = self.lambda_fixed
             k_new = k
         elif self.Nparam==1:
@@ -114,14 +121,16 @@ class Matern:
                 d     = param[k]
                 lamba = self.lambda_fixed
             else:
-                d     = 0.5*self.alpha_fixed
+                d     = self.alpha_fixed
                 lamba = param[k]
             k_new = k+1
         else:
             d     = param[k]
             lamba = param[k+1]
             k_new = k+2
-        alpha = 2.0*d
+        #--- Lilly et al. (2017): S(w) ~ 1/(w^2+lambda^2)^alpha, slope -2*alpha.
+        #    Hector's kappa=-2d is the slope, hence alpha=d.
+        alpha = d
 
         #--- Constant
         c0 = 2.0/(math.gamma(alpha-0.5) * pow(2.0, alpha-0.5))
@@ -133,7 +142,7 @@ class Matern:
         while i<m:
             if tau>threshold/lamba:
                 #--- Eq. (61)
-                t[i] = c0*math.sqrt(math.pi/2.0)*pow(lamba*tau,alpha-0.5)\
+                t[i] = c0*math.sqrt(math.pi/2.0)*pow(lamba*tau,alpha-1.0)\
                                                         * math.exp(-lamba*tau)
             else:
                 #--- Eq. (60)
@@ -166,14 +175,15 @@ class Matern:
         else:
             if self.Nparam==2 or (self.Nparam==1 and \
                                         math.isnan(self.alpha_fixed))==True:
-                if param[k]>0.7499:
-                    penalty += (param[k]-0.7499)*LARGE
-                    param[k] = 0.7499
-                elif param[k]<0.251:
-                    penalty += (0.251-param[k])*LARGE
-                    param[k] = 0.251
+                #--- alpha>1/2 for finite variance, so kappa < -1
+                if param[k]>1.4999:
+                    penalty += (param[k]-1.4999)*LARGE
+                    param[k] = 1.4999
+                elif param[k]<0.501:
+                    penalty += (0.501-param[k])*LARGE
+                    param[k] = 0.501
             if self.Nparam==2 or (self.Nparam==1 and \
-                                        math.isnan(self.labda_fixed))==True:
+                                        math.isnan(self.lambda_fixed))==True:
                 if self.Nparam==2:
                     k += 1
                 if param[k]<1.0e-6:

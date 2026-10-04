@@ -173,7 +173,7 @@ def compute_G_ARFIMA(lam, AR, d, MA):
 
 
 def compute_G_Matern(f,d,lamba):
-    """ compute PSD for VaryingAnnual noise
+    """ compute PSD for Matern noise
 
     Args:
         f (float) : real frequency  (Hz)
@@ -185,7 +185,7 @@ def compute_G_Matern(f,d,lamba):
     """
 
     tpi = 2.0*math.pi
-    alpha = 2.0*d
+    alpha = d
     c_alpha = math.gamma(0.5)*math.gamma(alpha-0.5)/(tpi*math.gamma(alpha))
 
     return 2.0*pow(lamba,2.0*alpha-1.0)/c_alpha * \
@@ -361,7 +361,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    estimatespectrum, version 3.1.9.")
+        print("    estimatespectrum, version 3.1.10.")
         print("***************************************")
 
     #--- Get Classes

@@ -150,7 +150,9 @@ class Covariance(metaclass=SingletonMeta):
             if i<self.Nmodels-1:
                 return param[i]
             else:
-                return 1.0 - param[i-1]
+                #--- remainder of all other fractions (not only the previous
+                #    one, which is only correct for two noise models)
+                return 1.0 - sum(param[0:self.Nmodels-1])
 
    
 
@@ -177,10 +179,20 @@ class Covariance(metaclass=SingletonMeta):
                 penalty += (param[i]-1.0)*LARGE
                 param[i] = 1.0
 
-        #--- Extra penalties for noise model parameters
-        k = len(self.noisemodels)-1
+        #--- fractions of the first Nmodels-1 models may not exceed 1 together
+        n = len(self.noisemodels)-1
+        total = sum(param[0:n])
+        if n>1 and total>1.0:
+            penalty += (total-1.0)*LARGE
+            for i in range(0,n):
+                param[i] /= total
+
+        #--- Extra penalties for noise model parameters, each model checks
+        #    its own parameters
+        k = n
         for noisemodel in self.noisemodels:
             penalty += noisemodel.penalty(k,param)
+            k += noisemodel.get_Nparam()
 
         return penalty
 
