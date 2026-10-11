@@ -409,6 +409,7 @@ def main():
             ('test_ggm_fallback', 'run_ggm_fallback_tests', 'ggm-py'),
             ('test_memory_guard', 'run_memory_guard_tests', 'mem-guard'),
             ('test_highrate_gaps', 'run_highrate_tests', 'hi-rate'),
+            ('test_redundant_offsets', 'run_redundant_offset_tests', 'offsets'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)

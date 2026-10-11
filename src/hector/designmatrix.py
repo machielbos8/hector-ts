@@ -134,6 +134,46 @@ class DesignMatrix(metaclass=SingletonMeta):
 
         self.n_periods = len(self.periods)
 
+    def _remove_redundant_offsets(self,EPS=1.0e-4):
+        """ Drop offsets whose column in H would be all zeros, all ones
+        (a copy of the intercept) or identical to another offset column,
+        as Hector 2.2 did. Only valid (non-NaN) epochs count, so two
+        offsets inside one data gap are redundant. Of each group of
+        offsets between two consecutive observations the latest is kept.
+        """
+
+        if len(self.ts.offsets)==0:
+            return
+        isnan = self.ts.data['obs'].isna().to_numpy()
+        t_valid = self.ts.data.index.to_numpy()[~isnan]
+        m_valid = len(t_valid)
+
+        #--- Same rule as _build_H: a step at t is active when offset<t+EPS
+        n_active = [int(np.sum(t_valid+EPS>o)) for o in self.ts.offsets]
+
+        keep = []
+        latest = {}  # n_active -> index of the latest offset with it
+        for j,o in enumerate(self.ts.offsets):
+            n = n_active[j]
+            if n==0 or n==m_valid:
+                where = 'after the last' if n==0 else 'before the first'
+                print('Removed offset at {0:10.4f}: {1:s} observation'.\
+                                                        format(o,where))
+            elif n in latest:
+                i = latest[n]
+                [early,late] = sorted([i,j],key=lambda k: self.ts.offsets[k])
+                print('Removed offset at {0:10.4f}: no observations between'\
+                      ' it and offset at {1:10.4f}'.\
+                      format(self.ts.offsets[early],self.ts.offsets[late]))
+                keep.remove(i)
+                keep.append(late)
+                latest[n] = late
+            else:
+                latest[n] = j
+                keep.append(j)
+
+        self.ts.offsets = [self.ts.offsets[j] for j in sorted(keep)]
+
     def _read_component_counts(self,control):
         """ Count the offset, post-seismic, slow-slip-event and
         multi-trend break columns requested by the control file."""
@@ -143,6 +183,7 @@ class DesignMatrix(metaclass=SingletonMeta):
         except:
             estimate_offsets = True
         if estimate_offsets==True:
+            self._remove_redundant_offsets()
             self.n_offsets = len(self.ts.offsets)
         else:
             self.n_offsets = 0
