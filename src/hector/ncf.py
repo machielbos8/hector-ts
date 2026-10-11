@@ -222,7 +222,7 @@ class NCF:
                 v[:] = np.asarray(data, dtype=np.float32)
 
 
-    def add_offsets(self, fname_in, fname_out, new_times, channel,
+    def add_offsets(self, fname_in, fname_out, new_times, channel=None,
                     tol=1.0e-4):
         """Copy fname_in to fname_out with extra offset epochs.
 
@@ -239,7 +239,8 @@ class NCF:
             fname_in  : path of the .ncf file the offsets were found in
             fname_out : path of the .ncf file to write (may equal fname_in)
             new_times : list of MJD epochs of the detected offsets
-            channel   : name of the channel they were detected in
+            channel   : name of the channel they were detected in, or None
+                        when they apply to all channels (multivariate search)
             tol       : epochs closer than this (days) count as identical
         """
         time_mjd, channels, od, attrs = self.read(str(fname_in))
@@ -253,7 +254,8 @@ class NCF:
                              if not (c.endswith('_model') or
                                      c.endswith('_residual'))]
             has_amp = any(k.startswith('offset_amp_') for k in od)
-            if not has_amp and len(data_channels) > 1:
+            if channel is not None and not has_amp and \
+               len(data_channels) > 1:
                 for c in data_channels:
                     od['offset_amp_' + c] = np.zeros(n_old, dtype=np.float32)
                 has_amp = True
@@ -267,14 +269,16 @@ class NCF:
                 if key in ('offset_time', 'offset_type'):
                     continue
                 arr = np.asarray(od[key])
-                if key == 'offset_amp_' + channel:
+                if key.startswith('offset_amp_') and \
+                   (channel is None or key == 'offset_amp_' + channel):
                     ext = np.zeros(len(add))
                 elif key.startswith('psr_log_or_exp_'):
                     ext = np.full(len(add), -1)
                 else:
                     ext = np.full(len(add), np.nan)
                 od[key] = np.concatenate([arr, ext.astype(arr.dtype)])
-            if has_amp and 'offset_amp_' + channel not in od:
+            if channel is not None and has_amp and \
+               'offset_amp_' + channel not in od:
                 #--- without its own array this channel used every offset
                 od['offset_amp_' + channel] = np.zeros(n_old + len(add),
                                                        dtype=np.float32)

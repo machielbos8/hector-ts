@@ -121,6 +121,12 @@ Key defaults (pass on the command line to override):
 | `--min_gap` | `30` | Minimum days between two accepted offsets |
 | `-maxoffsets` | `50` | Maximum offsets per station |
 
+With the default threshold about 200 offsets are found for these eight
+stations, against 42 entries in the NGL catalogue after 1999: real series
+contain signal that the trajectory model does not capture. To avoid
+detecting too many false offsets in real GNSS series, a threshold between
+30 and 70 is advised, e.g. `find_all_offsets -t 30`.
+
 Output: `obs_files/<station>.ncf` — stage data with detected offset
 epochs appended; `find_all_offsets_ncf.json` with full per-station
 results including T3 values.

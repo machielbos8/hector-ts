@@ -18,6 +18,8 @@ Each case failed (crash or wrong result) up to 3.1.12:
     the same fit;
   * findoffsets on an .ncf file did not store the detected offsets; they
     are now offset events of the channel they were found in;
+  * find_all_offsets wrote its .ncf output with only offset_time and
+    offset_type, dropping existing per-channel and post-seismic arrays;
   * removeoutliers without IQ_factor or Spike_factor gave a KeyError
     traceback instead of a message.
 
@@ -262,6 +264,71 @@ def case_findoffsets_ncf(tmp):
     return None
 
 
+def case_find_all_offsets_ncf(tmp):
+    """find_all_offsets' writer keeps existing offset metadata."""
+    from hector.ncf import NCF
+    from hector.find_all_offsets import _write_ncf_with_offsets
+    t, y = _series(n=300)
+    od = {"offset_time": np.array([55100.0]), "offset_type": np.array([2]),
+          "offset_amp_e": np.array([3.0]), "offset_amp_u": np.array([np.nan]),
+          "psr_amp_e": np.array([1.5]), "psr_tau_e": np.array([30.0]),
+          "psr_log_or_exp_e": np.array([0])}
+    fin = os.path.join(tmp, "in.ncf")
+    fout = os.path.join(tmp, "out.ncf")
+    NCF().write(fin, t, {"e": y.astype(np.float32), "u": y.astype(np.float32)},
+                offset_data=od, attrs={"sampling_period": 1.0})
+    _write_ncf_with_offsets(fin, fout, [55200.0])
+    _, ch, od2, _ = NCF().read(fout)
+    why = []
+    if list(od2.get("offset_type", [])) != [2, 0]:
+        why.append("offset_type {0}".format(list(od2.get("offset_type", []))))
+    for key, want in (("psr_amp_e", 1.5), ("psr_tau_e", 30.0),
+                      ("offset_amp_e", 3.0)):
+        if key not in od2 or abs(float(od2[key][0]) - want) > 1e-6:
+            why.append("{0} lost".format(key))
+    if NCF().offsets_for_channel(od2, "e") != [55100.0, 55200.0] or \
+       NCF().offsets_for_channel(od2, "u") != [55200.0]:
+        why.append("channel offsets e {0}, u {1}".format(
+            NCF().offsets_for_channel(od2, "e"),
+            NCF().offsets_for_channel(od2, "u")))
+    return "; ".join(why) if why else None
+
+
+def case_find_all_offsets_t3(tmp):
+    """Multivariate statistic is T3 = 2*sum(delta lnL), compared with 16.27.
+
+    The per-component epoch scan is replaced by fixed delta-lnL values
+    (4 + 3 + 3 = 10 at one epoch): T3 = 20 > 16.27 must be accepted. Up to
+    3.1.12 the plain sum (10) was compared with 16.27 and it was missed."""
+    from hector.ncf import NCF
+    import hector.find_all_offsets as fao
+    t, y = _series(n=200)
+    fin = os.path.join(tmp, "ST.ncf")
+    NCF().write(fin, t, {c: y.astype(np.float32) for c in ("e", "n", "u")},
+                attrs={"sampling_period": 1.0})
+    vals = {"e": 4.0, "n": 3.0, "u": 3.0}
+
+    def fake_scan(ctl_path):
+        comp = os.path.basename(str(ctl_path)).split("_")[-1][0]
+        d = np.zeros(len(t))
+        d[100] = vals[comp]
+        return d, t
+    old = fao._run_epoch_scan
+    fao._run_epoch_scan = fake_scan
+    try:
+        det = fao._multivariate_forward_search(
+            "ST", fin, os.path.join(tmp, "pre"), "PLWN", 0.0, False,
+            fao.CHI2_3_0001, 5, 30.0)
+    finally:
+        fao._run_epoch_scan = old
+    if len(det) != 1 or abs(det[0]["mjd"] - t[100]) > 1e-6:
+        return "detected {0}, expected one offset at {1}".format(
+               [d["mjd"] for d in det], t[100])
+    if abs(det[0].get("T3", 0) - 20.0) > 1e-9:
+        return "T3 {0}, expected 20".format(det[0].get("T3"))
+    return None
+
+
 def case_removeoutliers_message(tmp):
     """No IQ_factor / Spike_factor: clear message, non-zero exit."""
     t, y = _series(n=200)
@@ -288,6 +355,8 @@ CASES = [
     ("TimeNoiseStart skips the spin-up", case_timenoisestart),
     ("phi_ar1_fixed works", case_ar1_fixed),
     ("findoffsets stores offsets in .ncf", case_findoffsets_ncf),
+    ("find_all_offsets keeps .ncf offset metadata", case_find_all_offsets_ncf),
+    ("find_all_offsets uses T3 = 2*sum(dlnL)", case_find_all_offsets_t3),
     ("removeoutliers without IQ/Spike factor", case_removeoutliers_message),
 ]
 

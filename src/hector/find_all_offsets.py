@@ -102,7 +102,7 @@ def _write_findoffsets_ctl(station, noisemodels, phi, use_rmle, threshold, max_o
         elif phi > 0.0:
             fp.write(f"GGM_1mphi           {phi:e}\n")
         fp.write(f"useRMLE             {'yes' if use_rmle else 'no'}\n")
-        fp.write(f"OffsetThreshold     {threshold:.1f}\n")
+        fp.write(f"OffsetThreshold     {threshold:g}\n")
         fp.write(f"MaxOffsets          {max_offsets:d}\n")
         fp.write("Verbose             no\n")
 
@@ -116,34 +116,15 @@ CHI2_3_0001 = 16.27
 
 
 def _write_ncf_with_offsets(input_ncf, output_ncf, detected_mjds):
-    """Copy input NCF to output_ncf with detected offset epochs stored in offset_time.
+    """Copy input NCF to output_ncf with the detected offset epochs added.
 
-    Reads all channels and attrs from input_ncf, merges any existing offset
-    epochs with the newly detected ones (sorted, deduplicated), and writes a
-    fresh NCF to output_ncf.  offset_type is set to 0 (unknown) for all epochs.
+    All channels, attributes and existing offset events (with their
+    per-channel amplitude and post-seismic arrays) are kept; the new epochs
+    get offset_type 0 (unknown) and apply to all channels.
     """
     from hector.ncf import NCF
-
-    ncf = NCF()
-    time_mjd, channels, existing_od, attrs = ncf.read(str(input_ncf))
-
-    existing_times = list(
-        np.asarray(existing_od.get('offset_time', []), dtype=np.float64)
-    )
-    all_times = sorted(set(existing_times + [float(m) for m in detected_mjds]))
-
-    if all_times:
-        n = len(all_times)
-        offset_data = {
-            'offset_time': np.array(all_times, dtype=np.float64),
-            'offset_type': np.zeros(n, dtype=np.int32),
-        }
-    else:
-        offset_data = None
-
-    Path(output_ncf).parent.mkdir(parents=True, exist_ok=True)
-    ncf.write(str(output_ncf), time_mjd=time_mjd, channels=channels,
-              offset_data=offset_data, attrs=attrs)
+    NCF().add_offsets(str(input_ncf), str(output_ncf),
+                      [float(m) for m in detected_mjds], channel=None)
 
 
 def _write_mom(path, t, y, offset_mjds):
@@ -228,7 +209,8 @@ def _multivariate_forward_search(station, ncf_path, pre_dir,
     cross-component Sigma matrix in eq. (21) of the paper is the identity.
     Summing is therefore exact in the large-sample limit.
 
-    Returns a list of {'mjd': float, 'delta_lnL': float, 'iteration': int} dicts.
+    Returns a list of {'mjd', 'T3', 'delta_lnL' (sum over e,n,u), 'iteration'}
+    dicts.
     """
     from hector.ncf import NCF
 
@@ -277,8 +259,11 @@ def _multivariate_forward_search(station, ncf_path, pre_dir,
             for det_mjd in current_offsets:
                 dln_sum[np.abs(t_arr - det_mjd) < min_gap] = -np.inf
 
+        #--- T_3 = 2 * sum of the per-component delta-ln-L ~ chi^2(3)
+        #    (up to 3.1.12 the plain sum was compared with the threshold,
+        #    i.e. effectively T_3 > 2*16.27)
         i_best   = int(np.argmax(dln_sum))
-        best_val = float(dln_sum[i_best])
+        best_val = 2.0*float(dln_sum[i_best])
 
         print(f'  {iteration+1:d}: best epoch MJD {time_index[i_best]:.2f} '
               f'(i={i_best:d}) : T_3={best_val:.3f}')
@@ -288,7 +273,8 @@ def _multivariate_forward_search(station, ncf_path, pre_dir,
             current_offsets.append(epoch_mjd)
             detected.append({
                 'mjd':        epoch_mjd,
-                'delta_lnL':  best_val,
+                'T3':         best_val,
+                'delta_lnL':  0.5*best_val,
                 'iteration':  iteration + 1,
             })
         else:
@@ -322,7 +308,8 @@ def main():
     parser.add_argument('-s', dest='station', default='',
         help="Single station name (default: all stations found)")
     parser.add_argument('-t', dest='threshold', default='',
-        help=("delta-ln-L threshold to accept an offset.  "
+        help=("threshold to accept an offset: on T_3 = 2*sum(delta-ln-L) "
+              "(NCF mode) or on delta-ln-L (--mom).  "
               "Default: 16.27 (chi^2(3,0.001)) for NCF; 20.0 for --mom"))
     parser.add_argument('-maxoffsets', dest='max_offsets', default='50',
         help="Maximum number of offsets to find per station (default: 50)")
