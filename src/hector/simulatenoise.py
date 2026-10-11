@@ -241,7 +241,7 @@ def create_h(m,noisemodel,dt,ts_format,control):
 def main():
 
     print("\n***************************************")
-    print("    simulatenoise, version 3.1.11.")
+    print("    simulatenoise, version 3.1.12.")
     print("***************************************")
 
     #--- Parse command line arguments in a bit more professional way

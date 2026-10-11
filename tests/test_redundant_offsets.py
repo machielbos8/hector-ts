@@ -10,7 +10,10 @@ fine; the offset lists were not:
   * RONL: offset 54766 lies before the first epoch, so its column is all
     ones, a copy of the intercept.
 Hector 2.2 (C++) removed such offsets; DesignMatrix now does the same,
-counting only valid epochs and keeping the latest offset of each group.
+counting only valid epochs and, like 2.2, keeping the first offset of each
+group in file order (3.1.11 kept the latest: same estimates, but ln(L)
+differed from 2.2 by up to 0.05 because ln_det_HH includes the gap rows,
+where the two columns differ).
 
 The cases below use the REAL epochs (as segments of consecutive days) and
 offset lists of ADAR and RONL, with synthetic values (known trend, annual
@@ -98,9 +101,9 @@ SIGMA = 3.0   # mm, white noise
 CASES = [
     ("ADAR: two offsets in one data gap", ADAR_SEGMENTS,
      [56900.5, 54894.0, 55054.0, 58240.0],
-     ["Removed offset at 54894.0000: no observations between it and"
-      " offset at 55054.0000"],
-     [56900.5, 55054.0, 58240.0]),
+     ["Removed offset at 55054.0000: no observations between it and"
+      " offset at 54894.0000"],
+     [56900.5, 54894.0, 58240.0]),
     ("RONL: offset before the first epoch", RONL_SEGMENTS,
      [54766.0, 58239.0, 55919.5, 56018.5, 56991.5],
      ["Removed offset at 54766.0000: before the first observation"],
@@ -109,12 +112,12 @@ CASES = [
      [(58000.0, 58199.0), (58260.0, 58459.0)],
      [58000.0, 58100.0, 58210.0, 58250.0, 58230.0, 58500.0],
      ["Removed offset at 58000.0000: before the first observation",
-      "Removed offset at 58210.0000: no observations between it and"
-      " offset at 58250.0000",
+      "Removed offset at 58250.0000: no observations between it and"
+      " offset at 58210.0000",
       "Removed offset at 58230.0000: no observations between it and"
-      " offset at 58250.0000",
+      " offset at 58210.0000",
       "Removed offset at 58500.0000: after the last observation"],
-     [58100.0, 58250.0]),
+     [58100.0, 58210.0]),
 ]
 
 

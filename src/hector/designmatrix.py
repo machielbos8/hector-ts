@@ -139,7 +139,10 @@ class DesignMatrix(metaclass=SingletonMeta):
         (a copy of the intercept) or identical to another offset column,
         as Hector 2.2 did. Only valid (non-NaN) epochs count, so two
         offsets inside one data gap are redundant. Of each group of
-        offsets between two consecutive observations the latest is kept.
+        offsets between two consecutive observations the first one in the
+        file is kept, as in 2.2: the columns agree on the observations but
+        not on the gap rows, so this choice reproduces ln_det_HH and ln(L).
+        Unlike 2.2, an offset at the first epoch (all ones) is dropped too.
         """
 
         if len(self.ts.offsets)==0:
@@ -152,27 +155,21 @@ class DesignMatrix(metaclass=SingletonMeta):
         n_active = [int(np.sum(t_valid+EPS>o)) for o in self.ts.offsets]
 
         keep = []
-        latest = {}  # n_active -> index of the latest offset with it
+        first = {}  # n_active -> first offset in the file with it
         for j,o in enumerate(self.ts.offsets):
             n = n_active[j]
             if n==0 or n==m_valid:
                 where = 'after the last' if n==0 else 'before the first'
                 print('Removed offset at {0:10.4f}: {1:s} observation'.\
                                                         format(o,where))
-            elif n in latest:
-                i = latest[n]
-                [early,late] = sorted([i,j],key=lambda k: self.ts.offsets[k])
+            elif n in first:
                 print('Removed offset at {0:10.4f}: no observations between'\
-                      ' it and offset at {1:10.4f}'.\
-                      format(self.ts.offsets[early],self.ts.offsets[late]))
-                keep.remove(i)
-                keep.append(late)
-                latest[n] = late
+                      ' it and offset at {1:10.4f}'.format(o,first[n]))
             else:
-                latest[n] = j
-                keep.append(j)
+                first[n] = o
+                keep.append(o)
 
-        self.ts.offsets = [self.ts.offsets[j] for j in sorted(keep)]
+        self.ts.offsets = keep
 
     def _read_component_counts(self,control):
         """ Count the offset, post-seismic, slow-slip-event and
