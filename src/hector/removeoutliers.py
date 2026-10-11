@@ -65,13 +65,14 @@ def _write_ncf_channel_ctl(ctl_out_path, params, column):
         else:
             return str(val)
 
-    passthrough = ['DataFile', 'DataDirectory', 'OutputFile',
-                   'periodicsignals', 'estimateoffsets', 'ScaleFactor',
-                   'PhysicalUnit', 'TimeUnit', 'IQ_factor', 'Spike_factor']
+    #--- every keyword of the user's control file applies to each channel
+    #    (DegreePolynomial, postseismic, multi-trend, ...), except the three
+    #    that are set per channel below
+    own = ('TS_format', 'ColumnName', 'Verbose')
     with open(ctl_out_path, 'w') as fp:
-        for key in passthrough:
-            if key in params:
-                fp.write(f"{key:<20} {_fmt(params[key])}\n")
+        for key, val in params.items():
+            if key not in own:
+                fp.write(f"{key:<20} {_fmt(val)}\n")
         fp.write(f"TS_format            ncf\n")
         fp.write(f"ColumnName           {column}\n")
         fp.write(f"Verbose              no\n")
@@ -243,7 +244,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    removeoutliers, version 3.1.12.")
+        print("    removeoutliers, version 3.1.13.")
         print("***************************************")
 
     start_time = time.time()

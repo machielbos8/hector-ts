@@ -43,7 +43,7 @@ Expected output:
 1: best offset at  51034.00 (i=950) : dln=  172.049
 2: best offset at  50284.00 (i=200) : dln=  104.895
 3: best offset at  50335.00 (i=251) : dln=  133.194
-4: best offset at  50807.00 (i=723) : dln=    8.799
+4: best offset at  50807.00 (i=723) : dln=    8.800
 ---
 Found 4 offset(s).
 ```
@@ -65,12 +65,13 @@ a time-series plot to `data_figures/TEST.png`.
 ## Step 4 — Power spectral density
 
 ```bash
-estimatespectrum
+estimatespectrum -model
 ```
 
 Reads the residuals from `mom_files/TEST.mom` and computes the Welch
-periodogram.  Output is written to `estimatespectrum.out` and
-`modelspectrum.out`.
+periodogram, written to `estimatespectrum.out`.  With `-model` the PSD of
+the noise model estimated in Step 3 (read from `estimatetrend.json`) is
+written to `modelspectrum.out` as well.
 
 ## Control files
 

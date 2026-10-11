@@ -65,8 +65,11 @@ class ARFIMA:
 
 
     def get_param0(self):
-        """Sensible starting values: AR=0, MA=0, d=0.1."""
-        p0 = [0.0]*self.p + [0.0]*self.q
+        """Starting values 0.1 for all parameters, as Hector 2.2. AR=0 is
+        a bad start: for p>1 all roots coincide (the Sowell/Zinde-Walsh
+        partial fractions divide by rho_i-rho_j) and for d!=0 a zero root
+        divides by rho in the Doornik-Ooms recursion."""
+        p0 = [0.1]*self.p + [0.1]*self.q
         if self.estimate_d:
             p0.append(0.1)
         return p0
@@ -93,9 +96,11 @@ class ARFIMA:
             return np.array([], dtype=complex)
         if p == 1:
             return np.array([complex(AR[0])])
-        # descending-power coefficients: -AR[p-1]*z^p - ... - AR[0]*z + 1
-        coeffs = np.array([-AR[p-1-i] for i in range(p)] + [1.0], dtype=complex)
-        return 1.0 / np.roots(coeffs)
+        # rho are the roots of z^p - AR[0]*z^(p-1) - ... - AR[p-1]; the
+        # leading coefficient is 1, so there are always p of them (a zero
+        # AR[p-1] gives rho=0, where 1/np.roots(...) lost a root)
+        coeffs = np.array([1.0] + [-AR[i] for i in range(p)], dtype=complex)
+        return np.roots(coeffs).astype(complex)
 
 
 

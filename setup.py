@@ -173,7 +173,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="hector-ts",
-    version="3.1.12",
+    version="3.1.13",
     author="Machiel Bos",
     author_email="machielbos@protonmail.com",
     description="A collection of programs to analyse geodetic time series",
@@ -209,7 +209,7 @@ setuptools.setup(
         "examples/*/*",
         "examples/*/*/*",
     ]},
-    python_requires=">=3.6",
+    python_requires=">=3.10",
     install_requires=[
         'pandas',
         'numpy',
@@ -224,7 +224,6 @@ setuptools.setup(
     entry_points ={
         'console_scripts': [
             'estimatespectrum = hector.estimatespectrum:main',
-            'modelspectrum = hector.modelspectrum:main',
             'estimatetrend = hector.estimatetrend:main',
             'estimate_all_trends = hector.estimate_all_trends:main',
             'removeoutliers = hector.removeoutliers:main',

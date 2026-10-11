@@ -26,6 +26,10 @@ from hector.observations import Observations
 from hector.my_calendar import compute_mjd
 from hector._fpe import quiet_matmul
 
+#--- Reference epoch of the periodic signals: 1 January 2000 (MJD), so that
+#    the annual phase is the phase within the calendar year, as in Hector 2.2
+MJD_PHASE0 = 51544.0
+
 #==============================================================================
 # Class definitions 
 #==============================================================================
@@ -187,7 +191,7 @@ class DesignMatrix(metaclass=SingletonMeta):
         try:
             estimate_postseismic = control.params["estimatepostseismic"]
         except:
-            estimate_postseismic = True
+            estimate_postseismic = False   # as Hector 2.2
         if estimate_postseismic==True:
             self.n_postseismicexp = len(self.ts.postseismicexp)
             self.n_postseismiclog = len(self.ts.postseismiclog)
@@ -197,7 +201,7 @@ class DesignMatrix(metaclass=SingletonMeta):
         try:
             estimate_sse = control.params["estimateslowslipevent"]
         except:
-            estimate_sse = True
+            estimate_sse = False   # as Hector 2.2
         if estimate_sse==True:
             self.n_ssetanh = len(self.ts.ssetanh)
         else:
@@ -303,12 +307,16 @@ class DesignMatrix(metaclass=SingletonMeta):
             for j in range(1,self.n_degrees):
                 self.H[i,j] = self.H[i,j-1]*t
 
-            #--- Periodic Signal
+            #--- Periodic Signal (phase relative to 1 January 2000, as 2.2)
+            if self.ts.ts_format=='gen':
+                t = i*self.ts.sampling_period
+            else:
+                t = self.ts.data.index[i] - MJD_PHASE0
             for j in range(0,self.n_periods):
                 self.H[i,self.n_degrees+2*j+0] = \
-                   math.cos(2*math.pi*i*self.ts.sampling_period/self.periods[j])
+                   math.cos(2*math.pi*t/self.periods[j])
                 self.H[i,self.n_degrees+2*j+1] = \
-                   math.sin(2*math.pi*i*self.ts.sampling_period/self.periods[j])
+                   math.sin(2*math.pi*t/self.periods[j])
 
             #--- Offsets
             k = self.n_degrees+2*self.n_periods # use to remember index 
@@ -333,10 +341,10 @@ class DesignMatrix(metaclass=SingletonMeta):
 
             #--- Slow slip event, tanh
             k = k + self.n_postseismiclog  # add previous n_postseismiclog
+            #    (at every epoch, as Hector 2.2: the tanh is smooth)
             for j in range(0,self.n_ssetanh):
                 [mjd,T] = self.ts.ssetanh[j]
-                if mjd<t+EPS:
-                    self.H[i,k+j] = 0.5 * ( math.tanh((t-mjd)/T) - 1.0)
+                self.H[i,k+j] = 0.5 * ( math.tanh((t-mjd)/T) - 1.0)
 
             #--- Multi-trend ramp columns: max(0, t_raw - t_break_j)
             if self.n_breaks > 0:
@@ -409,21 +417,17 @@ class DesignMatrix(metaclass=SingletonMeta):
         #--- constant
         deg = 180.0/math.pi
 
-        #--- Mean error of cosine and sine
-        sigma = 0.5*(error[i] + error[i+1])
-        
-        #--- store estimated phase-lag in vector v
+        #--- As 2.2: each component with its own error and a fixed seed,
+        #    so the printed phase is the same in every run
         n = 10000
-        v = np.empty([n])
+        rng = np.random.default_rng(5489)
 
-        rng = np.random.default_rng()
-
-        x = theta[i+0] + sigma*rng.standard_normal(n)
-        y = theta[i+1] + sigma*rng.standard_normal(n)
+        x = theta[i+0] + error[i+0]*rng.standard_normal(n)
+        y = theta[i+1] + error[i+1]*rng.standard_normal(n)
         v = np.arctan2(y,x)
 
         pha = v.mean()*deg
-        pha_err = v.std()*deg
+        pha_err = v.std(ddof=1)*deg
 
         return [pha,pha_err]
 

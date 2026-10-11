@@ -361,7 +361,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    estimatespectrum, version 3.1.12.")
+        print("    estimatespectrum, version 3.1.13.")
         print("***************************************")
 
     #--- Get Classes
@@ -396,8 +396,6 @@ def main():
     #--- Replace NaN's to zero's
     x_clean = np.nan_to_num(x)
     n       = len(x)
-
-    print(x_clean[0:5])
 
     #--- Welch parameters from control file
     try:

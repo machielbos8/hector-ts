@@ -35,7 +35,7 @@ The header lists four known offset epochs (e.g. receiver replacements):
 removeoutliers -png
 ```
 
-Reads `obs_files/TEST.mom`, fits a linear trend plus annual signal via OLS,
+Reads `obs_files/TEST.mom`, fits a linear trend plus annual and semi-annual signals via OLS,
 flags outliers beyond 3 x IQR, and writes the cleaned series to
 `pre_files/TEST.mom`. The `-png` flag saves `data_figures/TEST.png`
 showing observed vs filtered data.
@@ -52,9 +52,9 @@ Reads `pre_files/TEST.mom`, estimates a linear trend + seasonal signals +
 four offsets using the GGM White noise model and RMLE. Writes
 `mom_files/TEST.mom` (observations and fitted model) and `data_figures/TEST.png`.
 
-Expected output (v3.0):
+Expected output (v3.1):
 ```
-trend: 16.753 +/- 1.044 mm/yr
+trend: 16.762 +/- 1.081 mm/yr
 ```
 
 ### Step 3 - Power spectral density

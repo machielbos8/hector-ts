@@ -241,7 +241,7 @@ def create_h(m,noisemodel,dt,ts_format,control):
 def main():
 
     print("\n***************************************")
-    print("    simulatenoise, version 3.1.12.")
+    print("    simulatenoise, version 3.1.13.")
     print("***************************************")
 
     #--- Parse command line arguments in a bit more professional way
@@ -266,7 +266,10 @@ def main():
     n_simulations = control.params["NumberOfSimulations"]
     m             = control.params["NumberOfPoints"]
     dt            = control.params["SamplingPeriod"]
-    ms            = control.params["TimeNoiseStart"]
+    try:
+        ms        = int(control.params["TimeNoiseStart"])
+    except KeyError:
+        ms        = 0
     noisemodels   = control.params['NoiseModels']
     try:
         repeatablenoise = control.params['RepeatableNoise']
@@ -353,7 +356,8 @@ def main():
 
         for j in range(0,len(sigma)):
             w = sigma[j] * rng.standard_normal(m+ms)
-            y += signal.fftconvolve(h[j], w)[0:m]
+            #--- skip the first ms (spin-up) samples, as Hector 2.2
+            y += signal.fftconvolve(h[j], w)[ms:ms+m]
 
         #--- convert this into Panda dataframe
         observations.create_dataframe_and_F(t,y,[],dt)

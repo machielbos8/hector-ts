@@ -61,7 +61,7 @@ def main():
 
     if verbose:
         print("\n***************************************")
-        print("    findoffsets, version 3.1.12.")
+        print("    findoffsets, version 3.1.13.")
         print("***************************************")
 
     #--- Optional offset-detection parameters
@@ -121,7 +121,17 @@ def main():
     #--- Write output file with offsets annotated
     fname_out = control.get_required('OutputFile',
                     "Add a line such as 'OutputFile results.mom' to the control file.")
-    observations.write(fname_out)
+    if observations.ts_format == 'ncf':
+        #--- ncf: write() only adds data channels; store the epochs as
+        #    offset events of the detecting channel instead
+        from hector.ncf import NCF
+        fname_in = str(observations.directory / observations.datafile)
+        NCF().add_offsets(fname_in, fname_out, new_offsets,
+                          observations.column_name)
+        if verbose:
+            print('--> {0:s}'.format(fname_out))
+    else:
+        observations.write(fname_out)
 
     if verbose:
         print("--- {0:8.3f} s ---\n".format(float(time.time() - start_time)))

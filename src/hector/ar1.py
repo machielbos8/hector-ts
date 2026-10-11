@@ -34,7 +34,7 @@ class AR1:
 
         #--- Check if phi is given in control file
         try:
-            self.phi_fixed = control.params['phi_ar1_fixed']
+            self.phi_fixed = float(control.params['phi_ar1_fixed'])
         except:
             self.phi_fixed = math.nan
 
@@ -45,15 +45,21 @@ class AR1:
         
         Returns
         -------
-        self.Nparam (int) : total number of parameters === 1 - phi
+        self.Nparam (int) : 1 when phi is estimated, 0 when it is fixed
         """
 
-        return 1
+        if math.isnan(self.phi_fixed)==True:
+            return 1
+        else:
+            return 0
 
 
     def get_param0(self):
         """Return sensible starting value for free AR1 parameter."""
-        return [0.5]   # phi: moderate autocorrelation
+        if math.isnan(self.phi_fixed)==True:
+            return [0.5]   # phi: moderate autocorrelation
+        else:
+            return []
 
 
     def create_t(self,m,k,param):
@@ -72,8 +78,12 @@ class AR1:
         """
 
         #--- Parse param
-        phi = param[k]
-        k_new = k+1   # increase k for next model
+        if math.isnan(self.phi_fixed)==True:
+            phi = param[k]
+            k_new = k+1   # increase k for next model
+        else:
+            phi = self.phi_fixed
+            k_new = k
 
         #--- Create first row vector of Covariance matrix
         t = np.zeros(m)

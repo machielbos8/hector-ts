@@ -201,7 +201,12 @@ class DataSnooping:
         except:
             self.verbose = True
 
-        self.IQ_factor = control.params['IQ_factor']
+        try:
+            self.IQ_factor = float(control.params['IQ_factor'])
+        except KeyError:
+            print('removeoutliers needs IQ_factor (data snooping) or '
+                  'Spike_factor (spike detection) in the control file')
+            sys.exit(1)
 
         #--- Get other classes
         self.obs = Observations()
@@ -244,8 +249,6 @@ class DataSnooping:
             xm = np.zeros((m-k))
             Hm = np.zeros((m-k,self.n))
             j = 0
-            print('n_outliers={0:d}, m={1:d}, k={2:d}, n={3:d}'.format(\
-					n_outliers,m,k,self.n))
             for i in range(0,m):
                 if math.isnan(self.x[i])==False:
                     xm[j] = self.x[i]
@@ -260,14 +263,12 @@ class DataSnooping:
 						np.nanpercentile(res, 25))
             median   = np.nanpercentile(res, 50)
 
-            print('treshold={0:f},  median={1:f}'.format(threshold,median))
             n_outliers = 0
             for i in range(0,m):
                 if not math.isnan(self.x[i]) and abs(res[i]-median)>threshold:
                     self.x[i] = np.nan
                     self.obs.set_NaN(i, update_F=False)
                     n_outliers += 1
-                    print('i={0:d}, n_outliers={1:d}'.format(i,n_outliers))
                     outliers.append(float(self.obs.data.index[i]))
 
             if self.verbose==True: 

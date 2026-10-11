@@ -524,12 +524,12 @@ class Observations(metaclass=SingletonMeta):
         y = np.array(channels[self.column_name], dtype=float)
 
         if self.use_residuals:
-            res_name = self.column_name + '_residual'
-            if res_name not in channels:
+            mod_name = self.column_name + '_model'
+            if mod_name not in channels:
                 print('Could not find channel {0:s} in {1:s}'.format(
-                      res_name, fname))
+                      mod_name, fname))
                 sys.exit(1)
-            y = y - np.array(channels[res_name], dtype=float)
+            y = y - np.array(channels[mod_name], dtype=float)
 
         #--- Offsets for this channel
         self.offsets = ncf.offsets_for_channel(offset_data, self.column_name)
@@ -641,10 +641,10 @@ class Observations(metaclass=SingletonMeta):
         #--- Write header logarithmic decay after seismic event
         for i in range(0,len(self.postseismiclog)):
             [mjd,T] = self.postseismiclog[i]
-            fp.write('# exp {0:10.4f} {1:5.1f}\n'.format(mjd,T))
+            fp.write('# log {0:10.4f} {1:5.1f}\n'.format(mjd,T))
         #--- Write header slow slip event
         for i in range(0,len(self.ssetanh)):
-            [mjd,T] = self.sshtanh[i]
+            [mjd,T] = self.ssetanh[i]
             fp.write('# tanh {0:10.4f} {1:5.1f}\n'.format(mjd,T))
 
         #--- Adaptive MJD format: enough decimal places to resolve one sample.
@@ -775,7 +775,7 @@ class Observations(metaclass=SingletonMeta):
         output['N'] = self.m
         output['gap_percentage'] = self.percentage_gaps 
         output['TimeUnit'] = self.time_unit
-        output['PhyiscalUnit'] = self.phys_unit
+        output['PhysicalUnit'] = self.phys_unit
 
 
 

@@ -43,10 +43,11 @@ estimate_all_trends
 
 Loops over all `.mom` files in `obs_files/`, runs `removeoutliers` and
 `estimatetrend` for each, and writes results to `hector_estimatetrend.json`.
-Estimated noise amplitudes should be close to the input values.
+Estimated noise amplitudes should be close to the input values: over the
+10 series the median spectral index is close to -1 (flicker noise), the
+median GGM amplitude close to 10 and the median white-noise amplitude
+close to 4 mm.
 
-To include the fitted PSD plots:
-
-```
-estimate_all_trends -png
-```
+The plots of the series (`data_figures/`) and of their power spectra with
+the fitted noise model (`psd_figures/`) are made by default; add
+`-nograph` to skip them.

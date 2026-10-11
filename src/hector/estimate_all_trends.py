@@ -55,7 +55,7 @@ def _noise_model_lines(noisemodels, phi):
     if add_small_1mphi:
         lines.append("GGM_1mphi           6.9e-06\n")
     elif phi > 0.0:
-        lines.append("GGM_1mphi           {0:f}\n".format(phi))
+        lines.append("GGM_1mphi           {0:g}\n".format(phi))
     return lines
 
 
@@ -193,7 +193,7 @@ def _load_estimatetrend_json():
 def main():
 
     print("\n*******************************************")
-    print("    estimate_all_trends, version 3.1.12.")
+    print("    estimate_all_trends, version 3.1.13.")
     print("*******************************************\n")
 
     parser = argparse.ArgumentParser(description='Estimate all trends')

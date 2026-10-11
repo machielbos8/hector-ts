@@ -30,6 +30,7 @@
 #==============================================================================
 
 import os
+from pathlib import Path
 import sys
 import numpy as np
 
@@ -219,6 +220,71 @@ class NCF:
                 v = ds.createVariable(name, 'f4', ('time',),
                                       fill_value=self.FILL_F32)
                 v[:] = np.asarray(data, dtype=np.float32)
+
+
+    def add_offsets(self, fname_in, fname_out, new_times, channel,
+                    tol=1.0e-4):
+        """Copy fname_in to fname_out with extra offset epochs.
+
+        Existing channels, offsets and their per-channel arrays are kept.
+        The new epochs get offset_type 0 (unknown). If the file has
+        offset_amp_<ch> arrays (which select the offsets of each channel,
+        see offsets_for_channel), the new epochs apply only to `channel`:
+        its amplitude entry is 0 (not estimated), the other channels get
+        NaN. Without such arrays every offset applies to all channels, so
+        for a file with several data channels the arrays are created (0 for
+        the existing epochs, which keep applying everywhere).
+
+        Args:
+            fname_in  : path of the .ncf file the offsets were found in
+            fname_out : path of the .ncf file to write (may equal fname_in)
+            new_times : list of MJD epochs of the detected offsets
+            channel   : name of the channel they were detected in
+            tol       : epochs closer than this (days) count as identical
+        """
+        time_mjd, channels, od, attrs = self.read(str(fname_in))
+        old = list(np.asarray(od.get('offset_time', []), dtype=np.float64))
+        add = [float(t) for t in new_times
+               if all(abs(float(t) - o) > tol for o in old)]
+
+        if add:
+            n_old = len(old)
+            data_channels = [c for c in channels
+                             if not (c.endswith('_model') or
+                                     c.endswith('_residual'))]
+            has_amp = any(k.startswith('offset_amp_') for k in od)
+            if not has_amp and len(data_channels) > 1:
+                for c in data_channels:
+                    od['offset_amp_' + c] = np.zeros(n_old, dtype=np.float32)
+                has_amp = True
+
+            od['offset_time'] = np.array(old + add, dtype=np.float64)
+            od['offset_type'] = np.concatenate([
+                np.asarray(od.get('offset_type', np.zeros(n_old)),
+                           dtype=np.int32),
+                np.zeros(len(add), dtype=np.int32)])
+            for key in list(od.keys()):
+                if key in ('offset_time', 'offset_type'):
+                    continue
+                arr = np.asarray(od[key])
+                if key == 'offset_amp_' + channel:
+                    ext = np.zeros(len(add))
+                elif key.startswith('psr_log_or_exp_'):
+                    ext = np.full(len(add), -1)
+                else:
+                    ext = np.full(len(add), np.nan)
+                od[key] = np.concatenate([arr, ext.astype(arr.dtype)])
+            if has_amp and 'offset_amp_' + channel not in od:
+                #--- without its own array this channel used every offset
+                od['offset_amp_' + channel] = np.zeros(n_old + len(add),
+                                                       dtype=np.float32)
+
+        Path(fname_out).parent.mkdir(parents=True, exist_ok=True)
+        tmp = str(fname_out) + '.tmp'
+        self.write(tmp, time_mjd, channels, offset_data=od if od else None,
+                   attrs=attrs)
+        os.replace(tmp, str(fname_out))
+
 
 
     def offsets_for_channel(self, offset_data, channel_name):

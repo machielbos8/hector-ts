@@ -76,7 +76,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    estimatetrend, version 3.1.12.")
+        print("    estimatetrend, version 3.1.13.")
         print("***************************************")
 
    
@@ -98,14 +98,11 @@ def main():
     try:
         offsetepochs_file = control.params['OffsetEpochsFile']
         station = os.path.splitext(os.path.basename(datafile))[0]
-        print(station)
         with open(offsetepochs_file,'r') as fp:
             for line in fp:
                 cols = line.split()
                 if cols[0]==station:
-                    print(cols)
                     epochs.append(_MJD_EPOCH_MPLNUM + int(cols[1]))
-        print('--->>>>>',epochs)
     except:
         pass
         

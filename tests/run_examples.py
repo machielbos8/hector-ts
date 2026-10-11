@@ -90,7 +90,7 @@ def _checks_ex1(d):
     ok &= _check('mom_files/TEST.mom created', (d / 'mom_files' / 'TEST.mom').exists())
     ej = json.loads((d / 'estimatetrend.json').read_text())
     t = ej.get('trend', float('nan'))
-    ok &= _check('trend ≈ 16.753 mm/yr', _near(t, 16.753, 0.05), f'{t:.3f}')
+    ok &= _check('trend ≈ 16.762 mm/yr', _near(t, 16.762, 0.01), f'{t:.3f}')
     # -png must actually produce figures. Both programs default to
     # data_figures/TEST.png (plotname = DataFile stem), so the steps rename
     # each figure after the step that made it; stale shipped figures are
@@ -119,8 +119,8 @@ def _checks_ex1_ncf(d):
                  (d / 'mom_files' / 'TEST.ncf').exists())
     ej = json.loads((d / 'estimatetrend.json').read_text())
     t = ej.get('trend', float('nan'))
-    ok &= _check('trend ≈ 16.753 mm/yr (matches the mom pipeline)',
-                 _near(t, 16.753, 0.05), f'{t:.3f}')
+    ok &= _check('trend ≈ 16.762 mm/yr (matches the mom pipeline)',
+                 _near(t, 16.762, 0.01), f'{t:.3f}')
     ok &= _check('estimatetrend -png wrote data_figures/TEST_ncf_trend.png',
                  (d / 'data_figures' / 'TEST_ncf_trend.png').exists())
     return ok
@@ -152,6 +152,19 @@ def _checks_ex3(d):
     if hpath.exists():
         hj = json.loads(hpath.read_text())
         ok &= _check('10 stations in results', len(hj) == 10, f'got {len(hj)}')
+        #--- simulatenoise.inp asks for Flicker 10 and White 4: the noise
+        #    must be recovered (a wrong .inp once gave kappa~0, white~10)
+        nm = [v.get('NoiseModel', {}) for v in hj.values()]
+        kap = sorted(m['GGM']['kappa'] for m in nm if 'GGM' in m)
+        ggm = sorted(m['GGM']['sigma'] for m in nm if 'GGM' in m)
+        wht = sorted(m['White']['sigma'] for m in nm if 'White' in m)
+        med = lambda x: x[len(x)//2] if x else float('nan')
+        ok &= _check('median kappa ≈ -1 (flicker)',
+                     _near(med(kap), -1.0, 0.15), f'{med(kap):.3f}')
+        ok &= _check('median GGM sigma ≈ 10',
+                     _near(med(ggm), 10.0, 1.5), f'{med(ggm):.2f}')
+        ok &= _check('median White sigma ≈ 4 mm',
+                     _near(med(wht), 4.0, 0.4), f'{med(wht):.2f}')
     return ok
 
 
@@ -410,6 +423,9 @@ def main():
             ('test_memory_guard', 'run_memory_guard_tests', 'mem-guard'),
             ('test_highrate_gaps', 'run_highrate_tests', 'hi-rate'),
             ('test_redundant_offsets', 'run_redundant_offset_tests', 'offsets'),
+            ('test_phase_reference', 'run_phase_reference_tests', 'phase'),
+            ('test_arfima', 'run_arfima_tests', 'arfima'),
+            ('test_model_fixes', 'run_model_fixes_tests', 'fixes'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)
