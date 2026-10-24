@@ -1,10 +1,17 @@
+import argparse
 import shutil
 import sys
 from pathlib import Path
 
 
 def main():
-    dest = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("hector-examples")
+    parser = argparse.ArgumentParser(
+        prog="hector-examples",
+        description="Copy the Hector examples, the paper scripts and the "
+                    "manual into a new folder.")
+    parser.add_argument("dest", nargs="?", default="hector-examples",
+                        help="folder to create (default: hector-examples)")
+    dest = Path(parser.parse_args().dest)
     if dest.exists():
         sys.exit(
             f"Destination already exists: {dest.resolve()}\n"
