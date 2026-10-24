@@ -3,9 +3,10 @@
 # Hector runs single-threaded.  Its own code (GSA, exact gap Gram matrix,
 # FFTs) uses one core; the only other source of threads is the BLAS/LAPACK
 # library underneath numpy (OpenBLAS, Accelerate or MKL), which by default
-# spreads its matrix operations over all cores.  For Hector that buys little
-# (about 5 % wall time on a 40-year series with 10 % gaps, at 20-50 % more CPU
-# time) and it oversubscribes the machine when several Hector programs run
+# spreads its matrix operations over all cores.  For Hector that buys nothing
+# (40-year series with 10 % gaps, eight threads: 1 % shorter on an Apple M4,
+# 3 % longer on an 8-core Linux machine at 8.6 times the CPU time) and it
+# oversubscribes the machine when several Hector programs run
 # side by side, which is the efficient way to analyse many stations.  The
 # BLAS libraries read these variables when numpy is first imported, and this
 # package is imported before numpy by every Hector program, so the defaults

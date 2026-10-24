@@ -19,11 +19,13 @@ memory are read per run from the operating system (os.wait4).
     python3 run_single_core.py              # measure, write single_core_results.json
     python3 run_single_core.py --summary    # print the shipped results
 
-Shipped: single_core_results.json (--threads 8) and
-single_core_results_4threads.json (--threads 4), both measured 2026-10-24.
+Shipped (2026-10-24, hector-ts 3.2.0 installed from PyPI in a clean
+environment, default options):
+  single_core_results.json        Apple M4, 4 performance + 6 efficiency cores
+  single_core_results_cupra.json  AMD Ryzen 9 8945HS, 8 cores, Linux
 
-Timings depend on the machine; measure on an otherwise idle machine.  The
-paper's values are from an Apple M4 (4 performance + 6 efficiency cores).
+Timings depend on the machine and on the NumPy build; measure on an
+otherwise idle machine.
 """
 # This file is part of Hector 3.2.
 #
@@ -171,8 +173,9 @@ def summary(path=RESULTS):
     c1, cn = med(x[1] for x in r["threads_one"]), med(x[1] for x in r["threads_many"])
     print(f"Machine: {r['machine']}  ({r['cpu_count']} cores)")
     print(f"40 yr, 10 % gaps, 1 vs {r['n_threads']} threads (median of {r['repeat']}):")
-    print(f"  wall {w1:.2f} -> {wn:.2f} s  ({100 * (1 - wn / w1):.0f} % shorter)")
-    print(f"  processor time {c1:.2f} -> {cn:.2f} s  ({100 * (cn / c1 - 1):.0f} % more)")
+    change = "shorter" if wn <= w1 else "longer"
+    print(f"  wall {w1:.2f} -> {wn:.2f} s  ({100 * abs(1 - wn / w1):.0f} % {change})")
+    print(f"  processor time {c1:.2f} -> {cn:.2f} s  ({cn / c1:.1f} times)")
     print(f"Peak memory of one run: 30 yr {r['mem_30yr_GB']:.2f} GB, "
           f"40 yr {r['mem_40yr_GB']:.2f} GB")
     print(f"{r['parallel']} series of 30 yr: one after another {r['sequential_s']:.1f} s, "
@@ -195,7 +198,7 @@ def main():
     if not args.summary:
         measure(args)
     summary()
-    extra = HERE / "single_core_results_4threads.json"
+    extra = HERE / "single_core_results_cupra.json"
     if args.summary and extra.exists():
         print()
         summary(extra)

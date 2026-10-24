@@ -354,8 +354,9 @@ python setup.py build_ext --inplace
 > Hector runs on a single core.  Its algorithms are sequential, and the only
 > other source of threads, the linear-algebra library underneath NumPy
 > (OpenBLAS, Accelerate or MKL), is restricted to one thread by default:
-> more threads shorten a run by only about 5 % while using 20–50 % more
-> processor time.  Several stations are therefore analysed fastest by
+> more threads do not shorten a run (with eight threads, 1 % shorter on an
+> Apple M4 and 3 % longer on an 8-core Linux machine, at up to 8.6 times the
+> processor time).  Several stations are therefore analysed fastest by
 > running several Hector programs side by side, one per core; a run of a
 > 40-year daily series needs less than 0.5 GB of memory.  To give the
 > linear-algebra library more threads anyway, set one of the usual
