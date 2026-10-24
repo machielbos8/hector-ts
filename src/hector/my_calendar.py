@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other

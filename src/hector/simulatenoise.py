@@ -2,7 +2,7 @@
 #
 # This program creates synthetic noise.
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -241,7 +241,7 @@ def create_h(m,noisemodel,dt,ts_format,control):
 def main():
 
     print("\n***************************************")
-    print("    simulatenoise, version 3.1.13.")
+    print("    simulatenoise, version 3.2.0.")
     print("***************************************")
 
     #--- Parse command line arguments in a bit more professional way

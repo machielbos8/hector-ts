@@ -2,7 +2,7 @@
 # 
 # Python3 implemenation of FullCov.cpp. 
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -59,7 +59,13 @@ class FullCov:
 
         #--- Cholesky factor of C, then whiten via triangular solves (rather than
         #    forming the explicit inverse of U): A = U^{-1} Hm, y = U^{-1} xm.
-        U = np.linalg.cholesky(Cm)
+        try:
+            U = np.linalg.cholesky(Cm)
+        except np.linalg.LinAlgError:
+            # Not numerically positive definite: report failure (NaN), which
+            # MLE.log_likelihood turns into its large penalty value.
+            nan = math.nan
+            return [np.full(n, nan), np.full((n, n), nan), nan, nan]
         A = solve_triangular(U, Hm, lower=True)
         y = solve_triangular(U, xm, lower=True)
 

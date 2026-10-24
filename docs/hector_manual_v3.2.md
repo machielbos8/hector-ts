@@ -1,7 +1,7 @@
 ---
 tm-title: "Hector"
-tm-subtitle: "User Manual version 3.1.6"
-tm-runhead: "Hector v3.1.6 User Manual"
+tm-subtitle: "User Manual version 3.2.0"
+tm-runhead: "Hector v3.2.0 User Manual"
 tm-author: "Machiel S. Bos"
 tm-date: "2026"
 bibliography: references_manual.bib
@@ -234,11 +234,11 @@ environment is safe and adds negligible overhead.
 
 ## Requirements
 
-- Python ≥ 3.11
+- Python ≥ 3.10
 - A C compiler (GCC, Clang, or MSVC)
 - FFTW3 system library (see below)
 - Python dependencies (installed automatically by pip):
-  `numpy`, `scipy`, `matplotlib`, `pandas`, `mpmath`, `cython`, `pyfftw`
+  `numpy`, `scipy`, `matplotlib`, `pandas`, `mpmath`, `cython`, `netCDF4`
 
 ## Step 1 — Install FFTW3
 
@@ -339,15 +339,29 @@ python setup.py build_ext --inplace
 >
 > ```python
 > import hector.levinson, hector.ammargrag
-> # both should print True
+> # all should print True
 > print(hector.levinson._USE_CYTHON)
-> print(hector.ammargrag._USE_CYTHON_GAPS, hector.ammargrag._USE_CYTHON_NOGAP)
+> print(hector.ammargrag._USE_CYTHON_GAPS, hector.ammargrag._USE_CYTHON_NOGAP,
+>       hector.ammargrag._USE_CYTHON_GRAM)
 > ```
 >
 > If any value is `False`, the compiled extension for that component failed to
 > load.  Re-run `pip install hector-ts` (PyPI wheel) or
 > `python setup.py build_ext --inplace` (source install) and check that the
 > build completed without errors.
+
+> **Note — one core per run.**
+> Hector runs on a single core.  Its algorithms are sequential, and the only
+> other source of threads, the linear-algebra library underneath NumPy
+> (OpenBLAS, Accelerate or MKL), is restricted to one thread by default:
+> more threads shorten a run by only about 5 % while using 20–50 % more
+> processor time.  Several stations are therefore analysed fastest by
+> running several Hector programs side by side, one per core; a run of a
+> 40-year daily series needs less than 0.5 GB of memory.  To give the
+> linear-algebra library more threads anyway, set one of the usual
+> variables yourself, for example `OPENBLAS_NUM_THREADS=4 estimatetrend`
+> (or `VECLIB_MAXIMUM_THREADS` on macOS); Hector then leaves all of them
+> alone.
 
 ## Command-line tools
 
@@ -358,11 +372,10 @@ on `PATH` immediately after installation.
 |------|-------------|
 | `estimatetrend` | Estimate trend, offsets, and periodic signals via MLE for a single station. |
 | `findoffsets` | Iterative forward search for offset epochs in a single time series. |
-| `estimate_all_trends` | Batch version of `estimatetrend`: processes every `.mom` file in `obs_files/`. |
-| `find_all_offsets` | Batch version of `findoffsets`: runs offset detection for every station. |
-| `removeoutliers` | Remove outliers from a time series using IQR data snooping. |
+| `estimate_all_trends` | Batch version of `removeoutliers` + `estimatetrend`: processes every `.mom` and `.ncf` file in `obs_files/`. |
+| `find_all_offsets` | Offset detection for every station: multivariate (E+N+U) search on `.ncf` files, or `findoffsets` per `.mom` file with `--mom`. |
+| `removeoutliers` | Remove outliers from a time series by data snooping (`IQ_factor`) or spike detection (`Spike_factor`). |
 | `estimatespectrum` | Estimate the power spectral density via the Welch periodogram. |
-| `modelspectrum` | Compute the theoretical PSD for a given noise model and parameters. |
 | `simulatenoise` | Generate synthetic coloured-noise time series. |
 | `predicttrenderror` | Predict trend uncertainty as a function of series length. |
 | `convert_rlrdata2mom` | Convert PSMSL RLR sea-level files to mom format. |
@@ -372,6 +385,7 @@ on `PATH` immediately after installation.
 | `plot_ts` | Plot a time series from a `.mom` / ASCII text file or a `.ncf` / `.nc` file. |
 | `date2mjd` | Convert a calendar date to Modified Julian Date. |
 | `mjd2date` | Convert a Modified Julian Date to calendar date. |
+| `hector-examples` | Copy the examples and this manual to a directory (default `./hector-examples`). |
 
 ## Updating Hector
 
@@ -385,8 +399,8 @@ pip install --upgrade hector-ts
 
 Hector consists of a set of simple command-line programs that help you
 through the steps of time series analysis: removal of outliers,
-estimation of a trend, estimating the power spectral density and modelling
-of the estimated power spectral density. In addition, a program exists to
+estimation of a trend, and estimating the power spectral density
+(optionally overlaid with the spectrum of the fitted noise model). In addition, a program exists to
 find offsets in the data. Finally, synthetic time series with coloured
 noise can be created.
 
@@ -443,10 +457,12 @@ for statistically significant Heaviside steps using a multivariate GLR test
 the output NetCDF files in `./obs_files`.
 
 From `./obs_files` onward both paths follow the same sequence. A second
-`removeoutliers` pass is run in **DataSnooping mode** (`IQ_factor`) on the
-offset-annotated files. Because the design matrix now includes offset
-columns, the residuals no longer absorb the step signal, so smaller outliers
-that were previously hidden near an offset epoch can be detected and removed.
+`removeoutliers` pass is run on the offset-annotated files. For `.mom` files
+`estimate_all_trends` uses **DataSnooping mode** (`IQ_factor 3`): because the
+design matrix now includes offset columns, the residuals no longer absorb the
+step signal, so smaller outliers that were previously hidden near an offset
+epoch can be detected and removed. For `.ncf` files it uses spike detection
+(`Spike_factor 5`).
 The cleaned files are stored in `./pre_files`. Finally, `estimatetrend` fits
 the full model (trend, periodic signals, offsets and noise) and writes the
 results to `./mom_files`.
@@ -457,7 +473,7 @@ the structure shown in the table below.
 | Step | Directory | Purpose |
 |------|-----------|---------|
 | 1 | `./raw_files` | Raw observations with outliers; no offset information. |
-| 2 | `./stage_files` | Large outliers removed; ready as input to `find_offsets`. |
+| 2 | `./stage_files` | Large outliers removed; ready as input to `find_all_offsets`. |
 | 3 | `./obs_files` | Time series with offset epochs annotated in the header. |
 | 4 | `./pre_files` | Outlier-cleaned observations; ready for trend estimation. |
 | 5 | `./mom_files` | Output of `estimatetrend`: observations plus fitted model. |
@@ -494,6 +510,15 @@ destination:
 hector-examples ~/my_hector_work
 ```
 
+Since version 3.1.9 the same command also unpacks a `paper_scripts/`
+directory: the numerical experiments of the paper *"Faster analysis of
+GNSS time series"* (Journal of Geodesy), together with the raw results
+measured for that paper, so every figure can be re-created and every
+benchmark re-run.  See `paper_scripts/README.md`; the driver is
+`run_all.py`, and `setup_tools.py` configures the optional external
+tools (Hector C++ v2.2, R with the gmwmx2 package) used by the timing
+comparisons.
+
 By going step by step through the analysis of some example data sets
 the working of Hector will be explained. First, we look at some
 synthetic GNSS data.
@@ -526,6 +551,14 @@ of the data is daily ($T$=1 day). The other lines tell Hector at which
 epochs an offset needs to be estimated. Since this information is known,
 the files were stored in the `obs_files` directory and not in
 `raw_files`. For detecting offsets, see Example 5.
+
+An offset only makes sense if there are observations both before and after
+it. Hector therefore ignores an offset that lies before the first or after the
+last observation and, when several offsets fall between two consecutive
+observations (for example inside a data gap), it keeps only the first one
+listed in the header.
+Each removed offset is reported in the output. Without this check, such
+offsets would make the least-squares problem singular.
 
 For the moment we assume that the information about these epochs of the
 offsets is given.
@@ -581,35 +614,49 @@ The contents of `removeoutliers.ctl` in the
 `ex1` directory is:
 
 ```
-DataFile            TEST.mom
-DataDirectory       ./obs_files
-OutputFile          ./pre_files/TEST.mom
-interpolate         no
-periodicsignals     365.25
-estimateoffsets     yes
-IQ_factor           3.0
-PhysicalUnit        mm
-ScaleFactor         1.0
+DataFile              TEST.mom
+DataDirectory         obs_files
+OutputFile            pre_files/TEST.mom
+periodicsignals       365.25 182.625
+estimateoffsets       yes
+ScaleFactor           1.0
+PhysicalUnit          mm
+TimeUnit              days
+IQ_factor             3
 ```
 
 The keyword `periodicsignals` replaces the old `seasonalsignal` /
 `halfseasonalsignal` pair; the old keywords still work for backward
-compatibility. A value of `365.25` requests a yearly signal; adding
-`182.625` would additionally include a half-yearly signal.
+compatibility. The values `365.25` and `182.625` request a yearly and a
+half-yearly signal.
 
 The first line gives the name of the DataFile with the raw data
 which is `TEST.mom` in our case.
 The second line gives the directory where this
 file can be found and the third line contains the required name of
-the file with the preprocessed data (outliers removed): `TEST_pre.mom`.
+the file with the preprocessed data (outliers removed): `pre_files/TEST.mom`.
 The output will always
 be in mom-format which stands for **M**JD, **O**bservations, **M**odel.
 The last column is optional and since `removeoutliers` only replaces the
 raw observations with the preprocessed observations, no third column will be
 added. See Section 6 for more details on the acceptable data format.
 To run `removeoutliers`, simply type `removeoutliers` on the
-prompt. A file called `removeoutliers.out` will be created that contains
-the MJD values of the points that have been removed.
+prompt. A file called `removeoutliers.json` will be created that contains
+the number of epochs and the MJD values of the points that have been removed:
+
+```
+{
+    "N": 1000,
+    "outliers": [
+        50100.0,
+        50131.0,
+        50213.0,
+        51032.0,
+        51065.0,
+        51077.0
+    ]
+}
+```
 
 `removeoutliers` fits a linear trend to the raw data using ordinary
 least-squares and afterwards subtracts this
@@ -628,12 +675,9 @@ is set by the keyword `ScaleFactor` which is 1.0 in this case. This
 keyword is optional and if omitted then a default value of 1.0 will be assumed.
 
 The linear trend is estimated assuming a white noise model and, as can
-be seen from the `removeoutliers.ctl` file, a seasonal (i.e. yearly)
-signal is also
-included in the estimation process. Offsets are also estimated.
-On the other hand, no half-seasonal signal is estimated nor any other periodic
-signal and the missing data are not interpolated. The keyword `periodicsignals`
-is optional and can be omitted.
+be seen from the `removeoutliers.ctl` file, a yearly and a half-yearly
+signal are also included in the estimation process. Offsets are also
+estimated. The keyword `periodicsignals` is optional and can be omitted.
 
 
 ### Estimation of the Linear Trend
@@ -647,16 +691,17 @@ is:
 
 ```
 DataFile            TEST.mom
-DataDirectory       ./pre_files
-OutputFile          ./mom_files/TEST.mom
+DataDirectory       pre_files
+OutputFile          mom_files/TEST.mom
 interpolate         no
-periodicsignals     365.25
+PhysicalUnit        mm
+TimeUnit            days
+ScaleFactor         1.0
+periodicsignals     365.25 182.625
 estimateoffsets     yes
 NoiseModels         GGM White
 GGM_1mphi           6.9e-06
 useRMLE             yes
-PhysicalUnit        mm
-ScaleFactor         1.0
 ```
 
 The recommended noise model for GNSS daily data is `GGM White` with
@@ -673,12 +718,11 @@ the name of the input file which is `TEST.mom` in this case because we
 are now going to use the preprocessed observations. These preprocessed
 observations together with the estimated trend in the third column,
 are written to the file name given after the keyword `OutputFile`.
-As before, the data are not interpolated.
-However, a seasonal signal and offsets are estimated.
+As before, a yearly and a half-yearly signal and the offsets are estimated.
 
 The `LikelihoodMethod` keyword has been omitted. The default method is
 `AmmarGrag`, which now uses the Generalised Schur Algorithm (GSA) internally
-for long series (more than approximately 2000 points), giving
+for long series (more than 1000 points), giving
 $O(n \log^2 n)$ complexity instead of $O(n^2)$.
 
 Note that if the `ScaleFactor` is not 1 in the file `removeoutliers.ctl`,
@@ -689,8 +733,9 @@ The program `estimatetrend` shows the following on the screen:
 
 ```
 ***************************************
-    estimatetrend, version 3.1.6.
+    estimatetrend, version 3.2.0.
 ***************************************
+
 Filename                   : pre_files/TEST.mom
 TS_format                  : mom
 TimeUnit                   : days
@@ -708,22 +753,23 @@ useRMLE-> True
 ----------------
 Number of iterations : 56
 min log(L)           : -1706.494080
-ln_det_I             :   20.179897
-ln_det_HH            :   64.521641
-ln_det_C             :  113.447525
+ln_det_I             : 20.179890
+ln_det_HH            : 64.521641
+ln_det_C             : 113.447483
 AIC                  : 3438.988161
 BIC                  : 3501.332336
-KIC                  : 3521.512233
-driving noise        :    1.570261
+KIC                  : 3521.512226
+driving noise        : 1.570261
 
 Noise Models
 ------------
 GGM:
 fraction  = 0.18753
 sigma     =  4.2402 mm/yr^0.31
+mod. std  =  1.7207 mm (over 8 yr)
 d         =  0.6204
 kappa     = -1.2407
-1-phi     =  0.0000 (fixed)
+1-phi     = 6.9000e-06 (fixed)
 
 White:
 fraction  = 0.81247
@@ -732,15 +778,20 @@ No noise parameters to show
 
 bias : 1.142 +/- 3.240 (at 50583.50)
 trend: 16.762 +/- 1.081 mm/yr
-cos  365.250 : 4.084 +/- 0.421 mm
-sin  365.250 : -3.930 +/- 0.432 mm
+cos  365.250 : 4.151 +/- 0.421 mm
+sin  365.250 : -3.859 +/- 0.432 mm
 amp  365.250 : 5.683 +/- 0.425 mm
-pha  365.250 : -43.882 +/- 4.308 degrees
+pha  365.250 : -42.930 +/- 4.416 degrees
+cos  182.625 : 0.050 +/- 0.269 mm
+sin  182.625 : -0.017 +/- 0.271 mm
+amp  182.625 : 0.342 +/- 0.179 mm
+pha  182.625 : -4.119 +/- 95.983 degrees
 offset at 50284.0000 :   24.36 +/-  0.85 mm
 offset at 50334.0000 :  -24.40 +/-  0.93 mm
 offset at 50784.0000 :  -40.62 +/-  0.88 mm
 offset at 51034.0000 :   38.45 +/-  0.91 mm
----    0.201 s ---
+--> mom_files/TEST.mom
+---    0.527 s ---
 ```
 
 The bias term corresponds to the value of the model at the reference
@@ -789,10 +840,10 @@ In Section 7 more details are given.
 
 To return to the output of `estimatetrend`, we can see both
 fractions and the main driving noise $\sigma^2$ which has for this
-case a standard deviation of 1.5717 mm. The
+case a standard deviation of 1.5703 mm. The
 standard deviation of the white noise is:
 
-$$\sigma_{wn} = \sqrt{0.80090}\times 1.5717 = 1.4066 \text{ mm}$$
+$$\sigma_{wn} = \sqrt{0.81247}\times 1.5703 = 1.4154 \text{ mm}$$
 
 In Hector the covariance matrix $\mathbf{E}$ is not scaled by the factor
 ${\Delta T}^{-\kappa/2}$, where $\Delta T$ is the sampling period in
@@ -800,7 +851,7 @@ years [@Williams2003]. However, to facilitate comparison with amplitude
 values for GGM noise quoted in the literature, we
 divide the estimated amplitude by ${\Delta T}^{-\kappa/4}$:
 
-$$\sigma_{ggm} = \frac{\sqrt{0.19910}\times 1.5717}{(1/365.25)^{(0.25\times1.2157)}} = 4.2148 \text{ mm/yr}^{0.30}$$
+$$\sigma_{ggm} = \frac{\sqrt{0.18753}\times 1.5703}{(1/365.25)^{(0.25\times1.2407)}} = 4.240 \text{ mm/yr}^{0.31}$$
 
 The second noise parameter of the GGM noise is the spectral index
 $d$ which is $-1/2$ times the more often used parameter $\kappa$ in
@@ -904,13 +955,14 @@ by the file `estimatespectrum.ctl`:
 
 ```
 DataFile            TEST.mom
-DataDirectory       ./mom_files
+DataDirectory       mom_files
 interpolate         no
-ScaleFactor         1.0
-NumberOfSegments    4
-Fraction            0.1
+PhysicalUnit        mm
+TimeUnit            days
 ```
 
+Two optional keywords control the periodogram: `NumberOfSegments`
+(default 4) and `Fraction` (default 0.1).
 The time series is divided into `NumberOfSegments` equal parts; with 50%
 overlap this gives `2×NumberOfSegments − 1` Welch periodograms to average.
 With the default of 4 segments this yields 7 periodograms, each spanning
@@ -928,26 +980,21 @@ estimatespectrum
 The output printed on the screen is:
 
 ```
-************************************
-    estimatespectrum, version 3.1.6
-************************************
-Data format: MJD, Observations, Model
-Filename              : ./mom_files/TEST.mom
-Number of observations: 1000
-Percentage of gaps    : 10.6
-Number of data points n : 1000
-Number of data used   N : 1000
-Number of segments    K : 7
-Length of segments    L : 250
-U : 0.9299
-dt: 8.64e+04
-scale for G to get Amplitude (mm): 0.3043
-Total variance in signal (time domain): 3.295
-Total variance in signal (spectrum)   : 2.963
-freq0: 4.6296e-08
-freq1: 5.7870e-06
---> estimatespectrum.out
+***************************************
+    estimatespectrum, version 3.2.0.
+***************************************
+
+Filename                   : mom_files/TEST.mom
+TS_format                  : mom
+TimeUnit                   : days
+PhysicalUnit               : mm
+ScaleFactor                : 1.000000
+Number of observations+gaps: 1000
+Percentage of gaps         :  10.6
+DeltaT = 1.000000
 ```
+
+The periodogram itself is written to `estimatespectrum.out`.
 
 The PSD of our estimated noise model can be overlaid on the periodogram
 by running `estimatespectrum` with the `-model` flag:
@@ -957,11 +1004,9 @@ estimatespectrum -model
 ```
 
 This reads the noise model parameters automatically from
-`estimatetrend.json` and saves the model PSD to `modelspectrum.out`.
-To ensure this file is available, set `JSON yes` in `estimatetrend.ctl`
-and keep the resulting `estimatetrend.json` in the same directory when
-producing spectrum plots. If the JSON file was saved under a different name,
-use the `-j` flag to specify it:
+`estimatetrend.json`, which `estimatetrend` always writes in the
+directory where it is run, and saves the model PSD to `modelspectrum.out`.
+If the JSON file has a different name, use the `-j` flag to specify it:
 
 ```
 estimatespectrum -model -j mystation.json
@@ -1040,31 +1085,33 @@ Here we are using the ARMA noise model. To be precise, there is
 1 AR coefficient (set by the `AR_p` keyword) and 0 MA coefficients (set by the
 `MA_q` keyword). Thus, we can shorten our notation of ARMA(1,0) to AR(1).
 If we now run `estimatetrend` we obtain a linear trend of
-1.270 $\pm$ 0.075 mm/yr. If we now change the noise model to AR(5),
-ARFIMA with `AR_p`=1 and `MA_q`=0 and GGM we obtain trends of 1.277 $\pm$
-0.103, 1.253 $\pm$ 0.175 and 1.265 $\pm$ 0.192 mm/yr which all have
-lower BIC and AIC values than the AR(1) noise model. Using
-`modelspectrum` and `estimatespectrum` one can produce the
-power spectral density plot. Note
-that the sampling time in hours is 730.5 hours. Furthermore, since only
+1.270 $\pm$ 0.076 mm/yr. If we now change the noise model to AR(5)
+(`AR_p`=5), ARFIMA with `AR_p`=1 and `MA_q`=0, and GGM, we obtain trends of
+1.277 $\pm$ 0.105, 1.252 $\pm$ 0.185 and 1.246 $\pm$ 0.233 mm/yr, which
+all have lower BIC and AIC values than the AR(1) noise model. Since only
 one noise model is used each time, the fraction is always 1.
-The control-file `estimatespectrum.ctl` is:
+The power spectral density plot is made with `estimatespectrum`; the
+sampling period of these monthly data is 30.4375 days. The control-file
+`estimatespectrum.ctl` is:
 
 ```
 DataFile            cascais_out.mom
 DataDirectory       ./
 interpolate         no
+PhysicalUnit        mm
 ```
 
-This provides us with the frequency range of 1.1317e-09 to
-1.9013e-07 Hz which needs to be fed into `modelspectrum`.
+Running `estimatespectrum -model` after `estimatetrend` writes the
+periodogram to `estimatespectrum.out` (frequencies from 1.1317e-09 to
+1.9013e-07 Hz) and the PSD of the estimated noise model, read from
+`estimatetrend.json`, to `modelspectrum.out`.
 
 In sea level research one is sometimes also interested in the acceleration.
 It is possible to estimate this by setting the optional keyword
 `DegreePolynomial` to 2 in `estimatetrend.ctl`. Its default value is 1.
 If we do this,
 then we obtain, using the GGM noise model, a quadratic term of
-0.004 $\pm$ 0.006 mm/yr$^2$. Note that this is half of the acceleration.
+0.003 $\pm$ 0.007 mm/yr$^2$. Note that this is half of the acceleration.
 
 Next, one can include additional geophysical signals in the analysis. A
 simple regression coefficient will be estimated. To do so, set the
@@ -1136,9 +1183,28 @@ The keyword `NumberOfPoints` specifies the number of points in the
 the time series and the keyword `TimeNoiseStart` was already discussed above.
 
 When `simulatenoise` is run, it will ask the user to manually enter
-the noise amplitudes for each noise model (e.g. Flicker amplitude = 10 mm,
-White amplitude = 4 mm).  To run non-interactively using the provided input
-file: `simulatenoise < simulatenoise.inp`.
+the noise amplitudes for each noise model, in the order of `NoiseModels`
+(here a flicker noise amplitude of 10 mm/yr$^{0.25}$ and a white noise
+amplitude of 4 mm). The provided file `simulatenoise.inp` contains these two
+numbers, so the series can also be created non-interactively:
+
+```
+simulatenoise < simulatenoise.inp
+```
+
+To check that the noise properties are recovered, run
+
+```
+estimate_all_trends
+```
+
+which runs `removeoutliers` and `estimatetrend` (with `GGM White` noise) on
+every file in `obs_files/` and collects the results in
+`hector_estimatetrend.json`. Over the 10 series the median spectral index is
+close to $\kappa=-1$ and the median GGM and white noise amplitudes are close
+to 10 mm/yr$^{0.25}$ and 4 mm (in the run whose results are included: $-0.92$, 9.9 and 3.9). The plots of
+the series and of their power spectra are written to `data_figures/` and
+`psd_figures/`; add `-nograph` to skip them.
 
 In some cases it is desirable to create the same set of synthetic time series
 each time `simulatenoise` is run. To achieve this, one can set the
@@ -1179,7 +1245,7 @@ estimateoffsets       yes
 estimatepostseismic   yes
 useRMLE               yes
 
-#--- I model power-law noise by GGM and fixed 1-phi value
+#--- Power-law noise approximated by GGM with fixed 1-phi
 NoiseModels           GGM White
 GGM_1mphi             6.9e-06
 
@@ -1189,7 +1255,7 @@ ScaleFactor           1.0
 
 To include slow-slip events the procedure is similar. You need to include
 the line `estimateslowslipevent yes` in the control file and add to
-the mom-file in the header `# tanh MMMM DD` where MMM is the Modified
+the mom-file in the header `# tanh MMMM DD` where MMMM is the Modified
 Julian Date and DD the relaxation time in days, see Section 5.
 
 ![Observed data and fitted model with three post-seismic relaxations (two logarithmic and one exponential) from Example 4.](figures/PostSeismic_out.png)
@@ -1247,9 +1313,12 @@ The control file reads the raw data and writes spike-filtered output to
 
 ```
 DataFile              TEST.mom
-DataDirectory         ./raw_files
-OutputFile            ./stage_files/TEST.mom
+DataDirectory         raw_files
+OutputFile            stage_files/TEST.mom
+periodicsignals       365.25 182.625
+ScaleFactor           1.0
 PhysicalUnit          mm
+TimeUnit              days
 Spike_factor          3
 ```
 
@@ -1261,17 +1330,29 @@ The JSON summary reports the detected outlier epochs:
     "N": 1000,
     "outliers": [
         50100.0,
-        50213.0,
-        50131.0,
+        50242.0,
+        50340.0,
+        51008.0,
         51032.0,
+        51033.0,
         51065.0,
-        51077.0
+        51077.0,
+        50131.0,
+        50213.0,
+        50674.0,
+        50779.0,
+        51045.0
     ]
 }
 ```
 
-Six spike outliers were removed. The filtered file retains 894 observations
-and can now be passed to `findoffsets`.
+Thirteen points were removed. Six of them are the outliers that were added
+to this synthetic series (the same six that `IQ_factor` finds in Example 1);
+the other seven are valid observations where the noise happened to pass the
+spike test, two of them at the edge of a data gap where only one neighbour
+is available. Losing a few valid observations does not affect the offset
+detection. The filtered file retains 887 observations and can now be passed
+to `findoffsets`.
 
 ### Step 2 — Detect Offset Epochs with `findoffsets`
 
@@ -1289,25 +1370,28 @@ DataFile            TEST.mom
 DataDirectory       ./stage_files
 OutputFile          ./obs_files/TEST.mom
 PhysicalUnit        mm
+ScaleFactor         1.0
 periodicsignals     365.25 182.625
 NoiseModels         FlickerGGM White
 GGM_1mphi           6.9e-06
 useRMLE             yes
 ```
 
-Running `findoffsets` produces the following output:
+Running `findoffsets` prints, after the usual header for each search cycle,
+the following summary lines:
 
 ```
-0: best offset at  50784.00 (i=700) : dln=  144.197
-1: best offset at  51034.00 (i=950) : dln=  214.723
-2: best offset at  50284.00 (i=200) : dln=  102.125
-3: best offset at  50335.00 (i=251) : dln=  127.931
-4: best offset at  50807.00 (i=723) : dln=    8.903
+0: best offset at  50784.00 (i=700) : dln=  160.744
+1: best offset at  51034.00 (i=950) : dln=  172.049
+2: best offset at  50284.00 (i=200) : dln=  104.895
+3: best offset at  50335.00 (i=251) : dln=  133.194
+4: best offset at  50807.00 (i=723) : dln=    8.800
 ---
 Found 4 offset(s).
+--> ./obs_files/TEST.mom
 ```
 
-The fifth candidate (MJD 50807, $\Delta\ln L = 8.9$) falls below the threshold
+The fifth candidate (MJD 50807, $\Delta\ln L = 8.8$) falls below the threshold
 of 20 and is rejected. The true offset epochs were MJD 50284, 50334, 50784
 and 51034; the detected epoch 50335 is off by one day because the observation
 at MJD 50334 happened to be among the random gaps in this dataset.
@@ -1316,7 +1400,7 @@ The output file `obs_files/TEST.mom` contains the detected epochs as
 `# offset` header lines:
 
 ```
-# sampling period 1.000000
+# sampling period 1.000000000000
 # offset 50784.0000
 # offset 51034.0000
 # offset 50284.0000
@@ -1325,9 +1409,10 @@ The output file `obs_files/TEST.mom` contains the detected epochs as
 ...
 ```
 
-From this point the workflow is identical to Example 1: run
-`removeoutliers` (now reading from `obs_files/`) to remove any remaining
-outliers, then `estimatetrend`, then `estimatespectrum`.
+From this point the workflow is the same as in Example 1: `estimatetrend`
+reads `obs_files/TEST.mom` (the spikes have already been removed) and writes
+`mom_files/TEST.mom`, after which `estimatespectrum` computes the
+periodogram of the residuals.
 
 ### Why `FlickerGGM` and not `GGM`
 
@@ -1365,7 +1450,7 @@ cleaned and annotated data is perfectly safe, as demonstrated in Example 1.
 
 ## Example 6: Offset Detection on a Real GNSS Time Series
 
-This example applies the multi-station workflow of Example 5 to eight long
+This example applies the offset-detection workflow of Example 5 to eight long
 European IGS stations: BOR1, GRAZ, MATE, METS, ONSA, VILL, WTZR, and ZIMM.
 Daily time series are downloaded from the Nevada Geodetic Laboratory (NGL,
 <https://geodesy.unr.edu/>) in tenv format and converted to NCF.  The three
@@ -1425,6 +1510,10 @@ the command line):
 | `-t` | `16.27` | GLR threshold χ²(3, α=0.001) |
 | `--min_gap` | `30` | Minimum days between accepted offsets |
 | `-maxoffsets` | `50` | Maximum offsets per station |
+
+With the default threshold many offsets are found that are not in the NGL
+catalogue; for real GNSS series a threshold between 30 and 70 (e.g.
+`find_all_offsets -t 30`) is advised, see the section on `find_all_offsets`.
 
 Output: `obs_files/<station>.ncf` with detected offset epochs embedded, plus
 `find_all_offsets_ncf.json` with per-station results.
@@ -1522,7 +1611,7 @@ Expected output:
 ```
 Piecewise trend segments:
   segment 1 (before 52639.0) :   0.169 mm/yr
-  slope change at 52639.0  :  +3.316 +/- 0.846 mm/yr
+  slope change at 52639.0  :  +3.317 +/- 0.846 mm/yr
   segment 2 (52639.0 - 53734.0) :   3.486 mm/yr
   slope change at 53734.0  :  -2.473 +/- 0.847 mm/yr
   segment 3 (53734.0 - end) :   1.013 mm/yr
@@ -1586,8 +1675,8 @@ stochastic noise. This deterministic model is [@BevisBrown2014]:
 $$\begin{aligned}
   \mathbf{x} =\;& \sum_{i=0}^{n_P}\mathbf{p}_i (t-t_R)^i +
                 \sum_{i=1}^{n_J} \mathbf{b}_j H(t-t_j) \\
-       & + \sum_{i=1}^{n_F} \mathbf{s}_i \sin(\omega_i t)
-         + \mathbf{c}_i \cos(\omega_i t) \\
+       & + \sum_{i=1}^{n_F} \mathbf{s}_i \sin(\omega_i (t-t_0))
+         + \mathbf{c}_i \cos(\omega_i (t-t_0)) \\
        & + \sum_{i=1}^{n_T} \mathbf{e}_i (1 - \exp(-(t-t_i)/T_i)) \\
        & + \sum_{j=1}^{n_L} \mathbf{a}_j \log(1 + (t-t_j)/T_j) \\
        & + \sum_{k=1}^{n_T} \frac{\mathbf{u}_k}{2}
@@ -1612,6 +1701,11 @@ In the equation their angular velocities are represented by $\omega_i$.
 These are most conveniently specified using the `periodicsignals` keyword,
 followed by a list of their periods in days. For example,
 `periodicsignals 365.25 182.625` requests annual and semi-annual signals.
+The reference epoch $t_0$ of these signals is 1 January 2000 (MJD 51544),
+as in Hector 2.2. The estimated phase therefore refers to the calendar
+year: the same annual signal gives the same phase, whatever the first
+epoch of the time series. For files in the generic `gen` format, which
+have no MJD time axis, $t_0$ is the first epoch of the series.
 The old keywords `seasonalsignal` and `halfseasonalsignal` still work for
 backward compatibility.
 
@@ -1623,9 +1717,15 @@ a Rice distribution with a mean of
 $\sigma\sqrt{\pi/2}\,L_{1/2}(-\nu^2/(2\sigma^2))$ where $\nu=\sqrt{c_i^2+s_i^2}$
 and $L_{1/2}(x)= {}_1F_1(-1/2,1,x)$.
 
+The phase is $\phi_i=\arctan(s_i/c_i)$ (computed with `atan2`), so that the
+signal is $A_i\cos(\omega_i(t-t_0)-\phi_i)$; for the annual signal the
+maximum is reached $\phi_i/360 \times 365.25$ days after 1 January
+(add 360° to a negative phase).
 The probability distribution function of the phase is more complicated.
 Therefore, simply a Monte Carlo simulation is performed using 10000 samples
-to get the mean and standard deviation of the phase.
+of $c_i$ and $s_i$, each with its own uncertainty, to get the mean and
+standard deviation of the phase. As in Hector 2.2, the random generator
+starts from a fixed seed, so the same data always give the same phase.
 
 
 ## Post-Seismic Deformation
@@ -1643,9 +1743,9 @@ days. An example is:
 
 One can use an exponential or logarithmic function, see the equation above.
 To estimate these post-seismic relaxations, one must set the keyword
-`estimatepostseismic` to yes in `estimatetrend.ctl`. Note that one cannot
-choose between East, North or Up component. It is applied to all
-if a file with more than one component is used.
+`estimatepostseismic` to yes in `estimatetrend.ctl` (the default is no).
+The relaxation terms are read from the header of `.mom` files only; the
+post-seismic variables of `.ncf` files are not used yet.
 
 In most cases, one should estimate an offset (due to the earthquake) and
 the post-seismic deformation. Therefore, one normally has both in the
@@ -1665,7 +1765,8 @@ its width respectively, must also be set in the header as follows:
 # tanh 51994.0   10.0
 ```
 
-One must add the keyword `estimateslowslipevent yes` in `estimatetrend.ctl`.
+One must add the keyword `estimateslowslipevent yes` in `estimatetrend.ctl`
+(the default is no).
 Note that one can consider this function as some kind of offset. Thus,
 no additional offset should be estimated. Of course this is just a general
 indication.
@@ -1680,22 +1781,18 @@ the piecewise linear function is written as a sum of special functions
 that grow linearly in a particular segment and afterwards remain constant.
 
 The time of a break in the linear trend is given in the header of the
-time series. Assuming that two earthquakes were accompanied by a change in
-linear trend in the north and east component, then this is indicated by:
+time series (`.mom` files only), for example:
 
 ```
-# break  51994.0 0
-# break  51994.0 1
+# break  51994.0
 ```
-
-The indication of the component is not required if a file with only
-one component is used.
 
 To estimate multi-trends, one must set the keyword `estimatemultitrend` to
 `yes` in `estimatetrend.ctl`. Hector reads the `# break` epochs from the
 data file header and adds a ramp function $\max(0, t - t_{\rm break})$ for
 each break epoch to the design matrix, estimating the slope change at each
-break. The piecewise segment slopes and their uncertainties are reported in
+break. The ramps are added on top of the polynomial set by
+`DegreePolynomial`. The piecewise segment slopes and their uncertainties are reported in
 the output and written to `estimatetrend.json` under the keys `trend_segments`
 and `break_trend_changes`.  A worked tutorial example is given in §4.7
 (Example 7).  The figure below shows a typical multi-trend result.
@@ -1749,27 +1846,23 @@ file is located; it defaults to `DataDirectory` if not given.
 
 # Acceptable Data Format
 
-Hector can accept various data formats which are described in this section.
-All of them are plain ASCII files and the time should always be increasing and
-the time step should be constant. The data format is specified by the
-extension of the filename. For example, the file name `TEST.enu` has the
-extension 'enu'. In addition, Hector accepts free format which means
-the exact number of digits or the spacing between the columns is flexible.
+Hector reads three formats: `mom` (the default), `gen` (a generic ASCII
+format with the same layout whose time axis need not be MJD) and `ncf`
+(netCDF4). The format is set with the keyword `TS_format`; files whose name
+ends in `.ncf` or `.nc` are recognised automatically. In the ASCII formats
+the time should always be increasing and the time step constant (missing
+epochs are allowed), and the number of digits and the spacing between the
+columns are free.
 
-As was mentioned before, to make use of the Python scripts, the use
-of the 'mom' format is necessary.
-
-For the mom-format, the sampling period in days can be specified in the
-header as follows:
+For the mom and gen formats the sampling period, in days, must be given in
+the header:
 
 ```
 # sampling period 1.0
 ```
 
-If this information is missing, then Hector tries to estimate
-the sampling period from the first few observations. The sampling periods
-it can detect automatically are: 0.5 hour, 1 hour, 1 day and 7 days.
-Note that this sampling period must always be given in days!
+A file without this line is refused with an error message. For `.ncf` files
+the global attribute `sampling_period` is used, or else the first time step.
 
 
 ## mom-format
@@ -1817,9 +1910,11 @@ $$MJD = 30.4375 \left( 12(\text{year}-1859) + (\text{month}-1)\right) + 59$$
 
 The `.ncf` format is a [netCDF4](https://www.unidata.ucar.edu/software/netcdf/)
 file designed for multi-channel time series — the primary use case being
-three-component GNSS displacement (north, east, up) where all components
+three-component GNSS displacement (east, north, up) where all components
 share the same time axis, discontinuity events, and post-seismic relaxation
-metadata.  The format also suits any other application that requires several
+metadata. In this version Hector uses the offset epochs of a `.ncf` file;
+the post-seismic relaxation variables are stored but not yet used in the
+trajectory model.  The format also suits any other application that requires several
 named channels in a single self-describing file.
 
 Hector recognises both `.ncf` and the more common `.nc` extension as netCDF4
@@ -1831,18 +1926,20 @@ metadata as structured arrays inside the file itself.
 
 ### Standard channel names
 
-For three-component GNSS data Hector uses the following lowercase names:
+For three-component GNSS data Hector uses the following lowercase names
+(as written by `convert_tenv2netcdf`):
 
 | Channel | Meaning          |
 |---------|-----------------|
-| `north` | North displacement |
-| `east`  | East displacement  |
-| `up`    | Vertical (up) displacement |
+| `e` | East displacement |
+| `n` | North displacement  |
+| `u` | Vertical (up) displacement |
 
+The batch scripts `estimate_all_trends` and `find_all_offsets`, and
+`removeoutliers` without `ColumnName`, process exactly these three channels.
 Custom names are allowed for other applications (e.g. `pressure`,
-`temperature`, `acc_x`).  `estimate_all_trends` automatically discovers all
-raw channels present in a `.ncf` file and analyses them in sequence, so no
-special configuration is needed beyond using consistent names.
+`temperature`, `acc_x`); select them with the keyword `ColumnName` and run
+the single-station programs.
 
 Names ending in `_model` or `_residual` are reserved for Hector's own
 output — do not use these suffixes for raw observation channels.
@@ -1852,7 +1949,7 @@ output — do not use these suffixes for raw observation channels.
 ```
 Dimensions:
     time      = UNLIMITED          # number of observations
-    n_offset  = <N>                # number of discontinuity events (0 if none)
+    n_offset  = <N>                # number of discontinuity events (absent if none)
 ```
 
 **Time variable**
@@ -1872,7 +1969,7 @@ well below the 5 ms step of a 200 Hz IMU.
 **Channel variables**
 
 ```
-float <name>(time)              # raw observations, e.g. north, east, up
+float <name>(time)              # raw observations, e.g. e, n, u
 float <name>_model(time)        # trajectory model written by estimatetrend
 float <name>_residual(time)     # observations minus model
 ```
@@ -1884,9 +1981,9 @@ two sources of `NaN` in a channel:
   storing a placeholder, such gaps are implicit from the time axis; however
   if a specific epoch is present in `time` but has no valid observation,
   store `NaN` for that sample.
-- **Outliers**: `removeoutliers` detects outliers using IQR data snooping and
-  sets the offending samples to `NaN` directly in the raw channel (augment
-  in place).  Subsequent tools — `estimatetrend`, `estimatespectrum` — treat
+- **Outliers**: `removeoutliers` detects outliers (data snooping or spike
+  detection) and writes the channel to `OutputFile` with the offending
+  samples set to `NaN`.  Subsequent tools — `estimatetrend`, `estimatespectrum` — treat
   any `NaN` value as a missing observation and exclude it from the analysis.
 
 When preparing a `.ncf` file for Hector, use `NaN` for any sample that
@@ -1916,7 +2013,10 @@ All discontinuity events across the file share a single `n_offset`
 dimension. Per-channel amplitudes and post-seismic relaxation (PSR)
 parameters are stored in separate variables named `offset_amp_<channel>`,
 `psr_amp_<channel>`, etc. A `NaN` value means that event does not affect
-that channel.
+that channel; if a channel has no `offset_amp_<channel>` variable, all events
+apply to it. Offsets found by `findoffsets` in a `.ncf` file are added as
+events of type 0 for the analysed channel only, with an amplitude entry of 0
+(the amplitude is not stored).
 
 **Global attributes**
 
@@ -1947,15 +2047,15 @@ the offset event metadata. Use `null` in JSON arrays to represent a `NaN`
   "sampling_period": 1.0,
   "station": "REYK",
   "component": "u",
-  "channels": ["east", "north", "up"],
+  "channels": ["e", "n", "u"],
   "offsets": {
     "offset_time":  [59000.0, 59500.0],
     "offset_type":  [1, 2],
-    "offset_amp_east":        [null, 3.2],
-    "offset_amp_north":       [1.1,  null],
-    "psr_amp_up":             [null, 1.5],
-    "psr_tau_up":             [null, 30.0],
-    "psr_log_or_exp_up":      [null, 0]
+    "offset_amp_e":        [null, 3.2],
+    "offset_amp_n":        [1.1,  null],
+    "psr_amp_u":           [null, 1.5],
+    "psr_tau_u":           [null, 30.0],
+    "psr_log_or_exp_u":    [null, 0]
   }
 }
 ```
@@ -1966,9 +2066,8 @@ the offset event metadata. Use `null` in JSON arrays to represent a `NaN`
 one channel to ASCII:
 
 ```
-ncfdump -i file.ncf                        # summary: attributes, channels, offset table
-ncfdump -i file.ncf -c east               # same, focused on channel 'east'
-ncfdump -i file.ncf -c east -o data.txt   # export east (+ _model, _residual if present)
+ncfdump -i file.ncf                     # summary: attributes, channels, offset table
+ncfdump -i file.ncf -c e -o data.txt    # export channel e (+ _model, _residual if present)
 ```
 
 The exported text file has columns `MJD <channel> [<channel>_model
@@ -1976,23 +2075,26 @@ The exported text file has columns `MJD <channel> [<channel>_model
 
 ### Using .ncf files in Hector
 
-Set `TS_format ncf` in the control file. The keyword `ColumnName` selects
-which channel to analyse. The time unit is always days (MJD), identical to
-the mom format.
+A file name ending in `.ncf` or `.nc` selects the ncf format automatically;
+it can also be set explicitly with `TS_format ncf`. The keyword `ColumnName`
+selects which channel to analyse. The time unit is always days (MJD),
+identical to the mom format.
 
 ```
 DataFile            REYK.ncf
 DataDirectory       ./obs_files
-OutputFile          obs_files/REYK.ncf
+OutputFile          mom_files/REYK.ncf
 TS_format           ncf
-ColumnName          north
+ColumnName          n
 ```
 
-After `estimatetrend` runs, the `<channel>_model` and `<channel>_residual`
-variables are appended directly to the same `.ncf` file (augment in place)
-using netCDF4 append mode — no other data in the file is touched.
-`removeoutliers` likewise operates in place: it sets detected outliers to
-`NaN` in the raw channel so that `estimatetrend` treats them as missing data.
+`estimatetrend` writes the `<channel>_model` and `<channel>_residual`
+variables to `OutputFile`: if that file does not exist yet it is first
+created as a copy of the input file, otherwise the variables are added to it
+(no other data in the file is touched). `removeoutliers` writes the cleaned
+channel to its `OutputFile` in the same way, with the detected outliers set to
+`NaN` so that `estimatetrend` treats them as missing data. Without
+`ColumnName`, `removeoutliers` cleans the channels `e`, `n` and `u`.
 
 ### Batch processing with estimate_all_trends
 
@@ -2003,22 +2105,70 @@ file(s) in `obs_files/` and run:
 estimate_all_trends -n GGMWN -useRMLE
 ```
 
-The tool discovers all `.ncf` files in `obs_files/`, reads their channel
-names, and for each station analyses every raw channel in sequence (north,
-then east, then up) before moving to the next file.  Both `removeoutliers`
-and `estimatetrend` are called per channel; results are written back into
-the same `.ncf` file.  The summary `hector_estimatetrend.json` uses a
-nested structure:
+For every `.ncf` file in `obs_files/`, `removeoutliers` is run once on the
+channels `e`, `n` and `u` (spike detection, `Spike_factor 5`), writing
+`pre_files/<station>.ncf`. Then `estimatetrend` is run for each of the three
+channels, writing the model and residuals to `mom_files/<station>.ncf`, and,
+unless `-nograph` is given, `estimatespectrum -model` computes the spectrum
+of the `<channel>_residual` channel. The summary `hector_estimatetrend.json`
+uses a nested structure:
 
 ```json
 {
   "REYK": {
-    "north": { "trend": 1.5, "trend_sigma": 0.1, ... },
-    "east":  { "trend": 0.8, "trend_sigma": 0.1, ... },
-    "up":    { "trend": 2.1, "trend_sigma": 0.3, ... }
+    "e": { "trend": 0.8, "trend_sigma": 0.1, ... },
+    "n": { "trend": 1.5, "trend_sigma": 0.1, ... },
+    "u": { "trend": 2.1, "trend_sigma": 0.3, ... }
   }
 }
 ```
+
+
+## Sampling rates and time-axis precision {#sec:sampling-rates}
+
+Hector has no hard-coded limit on the sampling frequency, but the time axis
+is stored as double-precision (64-bit) floating-point numbers, and at high
+sampling rates the *absolute value* of the epochs decides how precisely a
+sample can be placed on the regular grid. A double carries about 16
+significant digits, so the resolution near an epoch $t$ is roughly
+$t \times 10^{-16}$. On an absolute MJD axis ($t \approx 60000$) that
+resolution is $7 \times 10^{-12}$ days $\approx 0.6\,\mu$s.
+
+To decide which samples are missing, Hector requires every epoch to lie
+within 1% of a sampling period of the regular grid. On an absolute MJD
+axis this is satisfied up to roughly **30 kHz**; beyond that, epochs can no
+longer be written precisely enough in MJD, and Hector stops with a clear
+error message rather than guessing which samples are gaps. (Above
+$\sim$800 kHz consecutive MJD epochs are not even representable as distinct
+doubles.)
+
+For higher rates the solution is a **relative time axis**: let the first
+epoch be 0.0 instead of an absolute MJD. Near $t = 0$ the double-precision
+resolution is essentially unlimited, and a series sampled at, say,
+1.23 MHz is then processed without difficulty — the mom format does not
+require the first column to be a true MJD, only that the header sampling
+period uses the same unit (days). Offsets and other header epochs must of
+course use the same relative convention, and plots will not show calendar
+dates. As a rule of thumb, on a relative axis the grid stays exact as long
+as the total series *duration* satisfies
+$T \times 10^{-16} < 0.01 \times \Delta t$, which for a week-long record
+still allows several hundred kHz, and for an hour-long record several GHz.
+
+Three practical notes for high-rate data:
+
+* The `# sampling period` header is written in scientific notation when
+  the period is below $10^{-4}$ days, so that all its significant digits
+  survive a write/read round trip; older files whose header carries fewer
+  digits are still read correctly, because Hector re-derives the sampling
+  period from the file's own time span.
+* Gaps are classified by counting whole sampling periods between
+  *consecutive* epochs (never by stepping through the file one sample at a
+  time), so rounding errors do not accumulate over long gaps — a series
+  with millions of samples and long outages is classified exactly.
+* The practical ceiling is usually the series **length**, not the rate:
+  maximum-likelihood estimation is comfortable up to a few million
+  observations. For longer high-rate records, decimate (with a proper
+  anti-aliasing filter) or analyse segments.
 
 
 # Implemented Noise Models
@@ -2045,10 +2195,11 @@ Hector v3.0 replaces this with **direct fraction parameters**.
 For $n$ noise models, $n-1$ fractions $f_1,\ldots,f_{n-1}$ are the free
 optimisation parameters; the last fraction is computed as:
 
-$$f_n = 1 - f_{n-1}$$
+$$f_n = 1 - \sum_{i=1}^{n-1} f_i$$
 
-Each fraction is constrained to $[0,1]$ by penalty terms added to the
-log-likelihood during Nelder-Mead optimisation.  This avoids the
+Each fraction, and the sum of the free fractions, is constrained to $[0,1]$
+by penalty terms added to the log-likelihood during Nelder-Mead
+optimisation.  This avoids the
 singularities that occur in the angle-based parameterisation at
 $\phi = 0$ and $\phi = \pi/2$ and gives the optimizer a simpler,
 linear parameter space.  The starting value for each fraction is
@@ -2090,6 +2241,11 @@ Its one-sided power spectral density, with $\sigma=1$, is:
 
 $$S(f) = 2\frac{1}{f_s}\frac{1}{(2\sin(\pi f/f_s))^{2d}}$$
 
+This expression for $\gamma_i$ requires stationary noise, $d<0.5$: the
+`Powerlaw` model keeps $\kappa=-2d$ between $-0.998$ and $1.998$. Flicker
+noise ($\kappa=-1$) and steeper spectra are therefore modelled with the GGM
+model (see below).
+
 
 ## ARFIMA and ARMA
 
@@ -2116,15 +2272,15 @@ To complicate matters further, the coefficients of
 $\Theta$ are negative in the formulae of (Zinde-Wash1988).
 
 The value of the integers $p$ and $q$ are set by the keywords `AR_p` and
-`MA_q` respectively in `estimatetrend.ctl`. It is advised to use values
-for $p$ smaller than 5 to ensure that the MLE procedure always starts
-with coefficient values for $\phi_1,\ldots,\phi_p$ of $\Phi(L)$ that
-produce stationary noise.
-If $p$ and $q$ are zero, then one obtains again a pure power-law
-noise process. We have implemented the method of [@DoornikOoms2003]
-to compute the first column of the covariance matrix. For the special
-case when $d=0$, we use the equations of (Zinde-Wash1988) and
-can be selected by using the name `ARMA` after the keyword `NoiseModels`.
+`MA_q` respectively in `estimatetrend.ctl`; at least one of them must be
+larger than zero (for pure power-law noise use `Powerlaw` or `GGM`).
+As in Hector 2.2, the search starts with all coefficients equal to 0.1;
+during the search the AR roots are kept inside the unit circle (stationary
+noise) and $d$ between $-0.999$ and $0.499$. We have implemented the method
+of [@DoornikOoms2003] to compute the first column of the covariance matrix
+of `ARFIMA`, for which $d$ is always estimated. For the special case $d=0$,
+we use the equations of (Zinde-Wash1988); this model is selected with the
+name `ARMA` after the keyword `NoiseModels`.
 For sea level
 research the first order auto-regressive noise model is a popular choice:
 ARMA(1,0). For pure ARMA noise models faster Maximum Likelihood Methods
@@ -2137,6 +2293,10 @@ NoiseModels         ARMA
 AR_p                1
 MA_q                0
 ```
+
+The same AR(1) model is also available on its own as `NoiseModels AR1`. Its
+coefficient $\phi$ is estimated between 0 and 0.99999, or held fixed with
+the keyword `phi_ar1_fixed`.
 
 
 ## Generalised Gauss-Markov Noise Model
@@ -2234,6 +2394,12 @@ NoiseModels         FlickerGGM
 GGM_1mphi           6.9e-06
 ```
 
+`FlickerGGM` and `RandomWalkGGM` fix $d$ at 0.5 and 1.0. Without
+`GGM_1mphi`, the parameter $1-\phi$ is estimated (between $10^{-6}$ and
+0.999); the output marks with "(fixed)" which of $d$ and $1-\phi$ is held
+fixed. Note that the names `Flicker` and `RandomWalk` are only known to
+`simulatenoise`.
+
 The value of $6.9\times10^{-6}$ looks strange to many people. It is simply
 the smallest value that did not give numerical problems in previous versions of
 Hector. Since version 3.0 the Gaussian hypergeometric function is evaluated
@@ -2294,19 +2460,29 @@ station-to-station comparisons.
 
 ## Matern Noise Model
 
-The Matern noise model is well explained by [@Lillyetal2016]. It is
-very similar to the Generalised Gauss Markov model and also has
-two parameters: the spectral index $\alpha$ and a constant $\lambda$.
-Of course $\alpha$ is our $\kappa$ but with opposite sign. $\lambda$
-is related to $\phi$ of GGM and controls at which frequency the corner of
-the spectrum occurs. One or both parameters can be kept fixed to specific
+The Matern noise model is well explained by [@Lillyetal2016]. Its
+power spectrum is $S(\omega) \propto 1/(\omega^2+\lambda^2)^{\alpha}$:
+a power law $\omega^{-2\alpha}$ at high frequencies that flattens below
+the corner frequency $\lambda$ (in radians per sampling interval). It is
+the continuous-time counterpart of the Generalised Gauss Markov model:
+for frequencies well below Nyquist the GGM spectrum has the same form with
+$\alpha = d$ and $\lambda = 1-\phi$. Hector reports the slope as
+$\kappa = -2\alpha$, the same convention as for the other power-law
+models. A finite variance requires $\alpha > 1/2$, so the Matern model
+only covers spectra steeper than flicker noise: Hector restricts
+$-3 < \kappa < -1$. One or both parameters can be kept fixed to specific
 values in the control file `estimatetrend.ctl`. For example:
 
 ```
 NoiseModels         Matern
-kappa_fixed         -0.8
+kappa_fixed         -1.6
 lambda_fixed        0.01
 ```
+
+Hector versions up to 3.1.9 (and the C++ version 2.2) printed and read
+$\kappa = -\alpha$ instead of $-2\alpha$, i.e. half the true slope;
+multiply old Matern $\kappa$ values by two to
+obtain the actual spectral index.
 
 [@Lillyetal2016] describe how one can simulate synthetic noise time
 series by performing a Cholesky decomposition and multiplying the
@@ -2351,17 +2527,18 @@ $$\gamma_i = \sigma^2 \frac{\phi^k}{2(1-\phi^2)}\cos(\omega_0 k)$$
 
 Besides an annoying overloading of the symbol $\phi$ for yet another noise
 model, this is just the autocovariance of the AR(1) process multiplied
-by a cosine and divided by a factor 2. $\omega_0$ is the period of the
-periodic signal (here one year). In Hector one can specify varying
-annual and semiannual signals as follows:
+by a cosine and divided by a factor 2. $\omega_0$ is the angular frequency
+of the annual signal, $2\pi/365.25$ rad/day. This model needs a time axis in
+MJD (`mom` or `ncf` format). A varying annual signal is specified as follows
+(only the annual version is available):
 
 ```
-Noisemodels        VaryingAnnual VaryingSemiAnnual
-phi_varying_fixed  0.999	
+NoiseModels        VaryingAnnual White
+phi_varying_fixed  0.999
 ```
 
-As usual, one can estimate the value of $\phi$ or set it fixed by including
-`phi_varying_fixed` in the control file. Using the fact that
+As usual, one can estimate the value of $\phi$ (between 0 and 0.99999) or set
+it fixed by including `phi_varying_fixed` in the control file. Using the fact that
 $\cos(a)\cos(b)=[\cos(a+b)+\cos(a-b)]/2$, we have for the spectrum:
 
 $$S(f)=\frac{\sigma^2}{f_s}\left[\frac{1}{1-2\phi\cos(\omega+\omega_0)+\phi^2}+
@@ -2433,18 +2610,21 @@ information criteria alongside the final AIC, BIC, and KIC values (see,
 for example, the output in §4.1):
 
 ```
-min log(L)           : -1706.567540
-ln_det_I             :   20.725372
-ln_det_HH            :   64.521641
-ln_det_C             :  111.369319
-AIC                  : 3439.135081
-BIC                  : 3501.479256
-KIC                  : 3522.204627
+min log(L)           : -1706.494080
+ln_det_I             : 20.179890
+ln_det_HH            : 64.521641
+ln_det_C             : 113.447483
+AIC                  : 3438.988161
+BIC                  : 3501.332336
+KIC                  : 3521.512226
 ```
 
 `min log(L)` is the maximised log-likelihood ln(L) at the optimal noise
 model parameters.  It is labelled "min" because the optimiser internally
 minimises $-\ln(L)$, but the value printed is the log-likelihood itself.
+With `useRMLE yes` it is the restricted log-likelihood, which includes the
+term $-\tfrac12(\ln|\mathbf{I}|-\ln|\mathbf{H}^\top\mathbf{H}|)$; AIC, BIC
+and KIC are then computed from this value.
 
 `ln_det_C` is $\ln|\bar{\mathbf{C}}|$, the log-determinant of the
 normalised covariance matrix $\bar{\mathbf{C}}$.  It is one of the three
@@ -2480,17 +2660,16 @@ used which are listed in the table below. Combinations of
 noise model abbreviations are also allowed in most cases. For example,
 GGMWN is the recommended combination for the analysis of GNSS time series.
 
-| Abbreviation | Description |
-|-------------|-------------|
-| WN  | White noise |
-| FN  | Flicker noise |
-| PL  | Power-law noise |
-| RW  | Random Walk noise |
-| GGM | Generalised Gauss-Markov noise model |
-| AR1 | ARMA(1,0) first-order autoregressive noise model |
-| MT  | Matern noise model |
-| VA  | Varying Annual (Bandpass type noise) |
-| VSA | Varying Semi-Annual (Bandpass type noise) |
+| Abbreviation | Description | Written to the control file as |
+|-------------|-------------|-------------|
+| WN  | White noise | `White` |
+| FN  | Flicker noise | `FlickerGGM` with `GGM_1mphi 6.9e-06` |
+| PL  | Power-law noise | `GGM` with `GGM_1mphi 6.9e-06` |
+| RW  | Random Walk noise | `RandomWalkGGM` with `GGM_1mphi 6.9e-06` |
+| GGM | Generalised Gauss-Markov noise model | `GGM` (with `GGM_1mphi` from `-phi` if given) |
+| AR1 | First-order autoregressive noise model | `AR1` |
+| MT  | Matern noise model | `Matern` |
+| VA  | Varying Annual (bandpass type noise; `estimate_all_trends` only) | `VaryingAnnual` |
 
 
 ## removeoutliers
@@ -2500,7 +2679,9 @@ Two detection modes are available, selected by the control file:
 
 **DataSnooping mode** (`IQ_factor`): fits a preliminary trajectory model
 (trend, periodic signals, offsets) using ordinary least squares and flags
-observations whose residuals exceed `IQ_factor` × IQR (interquartile range).
+observations whose residual deviates from the median residual by more than
+`IQ_factor` × IQR (interquartile range); this is repeated until no new
+outliers are found.
 Use for the second outlier-removal pass, after offset epochs are known and
 included in the design matrix.
 
@@ -2512,8 +2693,9 @@ sign reversal), this mode is immune to unmodelled offsets.  Use for the first
 outlier-removal pass, before offset detection, when offsets are unknown.
 
 The mode is selected automatically: if `Spike_factor` is present in the
-control file, `SpikeDetector` is used; if `IQ_factor` is present,
-`DataSnooping` is used.
+control file, `SpikeDetector` is used (also when `IQ_factor` is present);
+otherwise `DataSnooping` is used, which requires `IQ_factor`. Without either
+keyword `removeoutliers` stops with an error message.
 
 **DataSnooping control file:**
 
@@ -2528,7 +2710,8 @@ PhysicalUnit        mm
 ```
 
 `IQ_factor` scales the interquartile range to set the rejection
-threshold (default 3; higher values are more conservative).
+threshold (required in this mode, 3 is a typical value; higher values are
+more conservative).
 
 **SpikeDetector control file:**
 
@@ -2544,7 +2727,8 @@ TimeUnit            days
 ```
 
 `Spike_factor` scales MAD(first differences) to set the rejection threshold
-(default 5; higher values are more conservative).
+(required in this mode, 3–5 are typical values; higher values are more
+conservative).
 
 **CLI flags:**
 
@@ -2552,21 +2736,37 @@ TimeUnit            days
 |------|---------|
 | `-i FILE` | Control file name (default: `removeoutliers.ctl`) |
 | `-graph` | Show result plot on screen |
-| `-png` | Save result plot to `data_figures/<station>.png` |
-| `-eps` | Save result plot to `data_figures/<station>.eps` |
+| `-png` | Save result plot to `data_figures/<PlotName>.png` |
+| `-eps` | Save result plot to `data_figures/<PlotName>.eps` |
+
+`PlotName` is an optional keyword; its default is the name of the data file
+without extension.
+
+For NCF (NetCDF) input each processed channel gets its own figure, saved
+as `data_figures/<station>_<column>.png` (or `.eps`) — e.g.
+`<station>_e.png`, `<station>_n.png`, `<station>_u.png` for a standard
+GNSS file, or `<station>_<ColumnName>.png` when `ColumnName` selects a
+single channel.  The observed series is drawn in blue and the cleaned
+(filtered) series in red, so the effect of the chosen `IQ_factor` or
+`Spike_factor` can be judged at a glance.
 
 **Output:**
-- `OutputFile` — cleaned `.mom` file with outlier epochs set to `NaN`
-- `removeoutliers.json` — list of detected outlier epochs in ISO 8601 format:
+- `OutputFile` — the cleaned series in the format of the input: for `.mom`
+  files the outliers (and gaps) are left out, for `.ncf` files they are set
+  to `NaN`
+- `removeoutliers.json` — always written; for a `.mom` file it contains the
+  number of epochs (including gaps) and the MJD of every removed point
+  (Example 1):
 
 ```json
 {
-  "N" : 1000,
-  "gap_percentage" : 10,
-  "outliers" : ["1996-01-18T00:00:00.000Z", "1996-02-18T00:00:00.000Z",
-                "1996-05-10T00:00:00.000Z", "1998-08-07T00:00:00.000Z"]
+    "N": 1000,
+    "outliers": [50100.0, 50131.0, 50213.0, 51032.0, 51065.0, 51077.0]
 }
 ```
+
+For a `.ncf` file the same information is given per channel, under the key
+`channels`, together with the names of the input and output files.
 
 All keywords accepted by `removeoutliers.ctl` are listed in the
 Quick Reference chapter.
@@ -2575,10 +2775,11 @@ Quick Reference chapter.
 ## estimate\_all\_trends
 
 `estimate_all_trends` is the batch counterpart of `estimatetrend`.  It
-reads every `.mom` file in `./obs_files/`, runs `removeoutliers` followed
-by `estimatetrend` for each station, and collects all results into a
-single JSON file.  The relationship is the same as that between
-`findoffsets` and `find_all_offsets`.
+reads every `.mom` and `.ncf` file in `./obs_files/`, runs `removeoutliers`
+followed by `estimatetrend` for each station, and collects all results into
+a single JSON file. `.ncf` files are processed as described in the section
+on the ncf format (spike detection, channels `e`, `n` and `u`); the steps
+below are those for `.mom` files.
 
 **Usage:**
 
@@ -2590,16 +2791,16 @@ estimate_all_trends [-n NOISEMODEL] [-phi VALUE] [-s STATION]
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `-n` | `PLWN` | Noise model code (same abbreviations as in §9) |
-| `-phi` | `0.0` | `GGM_1mphi` value (0 → use `6.9e-6` for PL/FN models) |
-| `-s` | *(all)* | Process a single named station instead of all |
+| `-phi` | `0.0` | `GGM_1mphi` for a free GGM (code `GGM`, e.g. `GGMWN`); ignored for PL/FN/RW, which always use `6.9e-6` |
+| `-s` | *(all)* | Process a single named station instead of all (its `.ncf` file if both exist) |
 | `-useRMLE` | off | Use Restricted Maximum Likelihood |
 | `-nograph` | off | Skip generating PNG plots |
 | `-noseasonal` | off | Omit annual and semi-annual signals from the model |
 
 For each station the script:
 
-1. Writes a temporary `removeoutliers.ctl` and runs `removeoutliers`,
-   saving the cleaned file to `./pre_files/`.
+1. Writes a temporary `removeoutliers.ctl` (DataSnooping, `IQ_factor 3`)
+   and runs `removeoutliers`, saving the cleaned file to `./pre_files/`.
 2. Writes a temporary `estimatetrend.ctl` and runs `estimatetrend -png`
    (or without `-png` if `-nograph` is set), saving the fitted series to
    `./mom_files/`.
@@ -2612,10 +2813,12 @@ combined `estimatetrend.json` output for every station:
 
 ```json
 {
-    "TEST":  { "trend": 16.4165, "trend_sigma": 0.704617, ... },
-    "SITE2": { "trend":  3.1200, "trend_sigma": 0.412000, ... }
+    "test_base_0": { "trend": -0.4933, "trend_sigma": 0.275344, ... },
+    "test_base_1": { "trend":  0.0592, "trend_sigma": 0.222823, ... }
 }
 ```
+
+(from Example 3).
 
 
 ## findoffsets
@@ -2627,8 +2830,9 @@ search*:
 1. Estimate the noise parameters via MLE (or RMLE if `useRMLE yes`).
 2. For each candidate epoch, compute the improvement in log-likelihood
    $\Delta\ln L$ when a Heaviside offset column is added at that epoch.
-   This is done with the fast scan algorithm (O(m) operations per epoch,
-   O(m²) total), so no extra MLE calls are needed.
+   This is done with a fast scan that keeps the noise parameters fixed, so
+   no extra MLE calls are needed (with `AmmarGrag` and no gaps it costs O(m)
+   operations per epoch; with gaps or `FullCov` the scan is slower).
 3. Accept the epoch with the largest $\Delta\ln L$ if it exceeds
    `OffsetThreshold`.  Add it to the design matrix and repeat from step 1.
 4. Stop when no remaining candidate exceeds the threshold or when
@@ -2651,40 +2855,41 @@ OffsetThreshold     20.0
 MaxOffsets          50
 ```
 
-`OffsetThreshold` is the minimum $\Delta\ln L$ required to accept an
-offset (default 20.0).  A value of 20 corresponds approximately to a
-likelihood ratio test at a very stringent significance level; lower
-values detect more offsets but increase the false-positive rate.
-`MaxOffsets` (default 50) is a safety cap.
+`OffsetThreshold` is the minimum $\Delta\ln L$ of the analysed component
+required to accept an offset (default 20.0). Under the null hypothesis of no
+offset $2\Delta\ln L$ follows a $\chi^2(1)$ distribution, so the default
+corresponds to $2\Delta\ln L > 40$, a very strict test; lower values detect
+more offsets but also more false ones. This threshold is set in the control
+file of `findoffsets`; for the batch tool `find_all_offsets` it is set on the
+command line (see below). `MaxOffsets` (default 50) is a safety cap.
 
-Running `findoffsets` prints the iterative search progress:
+Running `findoffsets` prints the iterative search progress; for Example 5
+the summary lines are:
 
 ```
-***************************************
-    findoffsets, version 3.1.6.
-***************************************
-0: best offset at  50784.00 (i=200) : dln=  87.432
-1: best offset at  51034.00 (i=450) : dln=  74.618
-2: best offset at  50284.00 (i= 50) : dln=  62.104
-3: best offset at  50334.00 (i=100) : dln=  51.891
-4: best offset at  51065.00 (i=481) : dln=  14.207
+0: best offset at  50784.00 (i=700) : dln=  160.744
+1: best offset at  51034.00 (i=950) : dln=  172.049
+2: best offset at  50284.00 (i=200) : dln=  104.895
+3: best offset at  50335.00 (i=251) : dln=  133.194
+4: best offset at  50807.00 (i=723) : dln=    8.800
 ---
 Found 4 offset(s).
----    1.243 s ---
 ```
 
-The search stops at step 4 because $\Delta\ln L = 14.2 < 20.0$.
+The search stops at step 4 because $\Delta\ln L = 8.8 < 20.0$.
 Two output files are written:
 
 - **`findoffsets.json`** — machine-readable list of detected offset MJDs:
   ```json
   {
-      "offsets": [50784.0, 51034.0, 50284.0, 50334.0]
+      "offsets": [50784.0, 51034.0, 50284.0, 50335.0]
   }
   ```
 - **`OutputFile`** (here `./pre_files/TEST.mom`) — the input `.mom` file
   with `# offset MJD` header lines added for every detected offset.
-  This file can be passed directly to `estimatetrend`.
+  This file can be passed directly to `estimatetrend`. For a `.ncf` file the
+  detected epochs are added as offset events of the analysed channel (see
+  the section on the ncf format).
 
 `findoffsets` is the single-station counterpart of `find_all_offsets`,
 in the same way that `estimatetrend` is the single-station counterpart
@@ -2693,51 +2898,84 @@ of `estimate_all_trends`.
 
 ## find\_all\_offsets
 
-`find_all_offsets` is the batch companion to `findoffsets`.  It reads
-every `.mom` file in `./obs_files/`, runs `removeoutliers` followed by
-`findoffsets` for each station, and collects the results into a single
-JSON file.  The relationship mirrors the single/batch pairing of
-`estimatetrend` and `estimate_all_trends`.
+`find_all_offsets` detects offsets for every station in a directory. It has
+two modes.
+
+**Default mode (`.ncf`, multivariate).** For every `.ncf` file in
+`./stage_files/` (spike-filtered data, see the Conventions chapter) a forward
+search is run on the three components `e`, `n` and `u` together: at each
+step the statistic $T_3 = 2(\Delta\ln L_E + \Delta\ln L_N + \Delta\ln L_U)$
+is computed for every epoch and the epoch with the largest $T_3$ is accepted
+if it exceeds the threshold (default 16.27, the $\chi^2(3)$ value for
+$\alpha = 0.001$). Epochs within
+`--min_gap` days of an accepted offset are not considered again. The
+detected epochs are added, as offset events of type 0 that apply to all
+channels, to a copy of the file in `./obs_files/<station>.ncf` (existing
+offset events and their per-channel variables are kept), and all results to
+**`find_all_offsets_ncf.json`**:
+
+```json
+{
+    "STATION": {
+        "offsets": [57012.0, 58340.0],
+        "details": [
+            {"mjd": 57012.0, "T3": 170.4, "delta_lnL": 85.2, "iteration": 1},
+            {"mjd": 58340.0, "T3": 47.8, "delta_lnL": 23.9, "iteration": 2}
+        ]
+    }
+}
+```
+
+**`--mom` mode (univariate).** For every `.mom` file in `./obs_files/` the
+script runs `removeoutliers` (DataSnooping, `IQ_factor 3`, writing to
+`./pre_files/`) and then `findoffsets`, which adds the detected offsets to
+the file in `./pre_files/`. The results are collected in
+**`find_all_offsets.json`**:
+
+```json
+{
+    "TEST":  {"offsets": [50784.0, 51034.0, 50284.0, 50335.0]},
+    "SITE2": {"offsets": []}
+}
+```
 
 **Usage:**
 
 ```
 find_all_offsets [-n NOISEMODEL] [-phi VALUE] [-s STATION]
                  [-t THRESHOLD] [-maxoffsets N] [-useRMLE]
+                 [--min_gap DAYS] [--mom]
 ```
 
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `-n` | `PLWN` | Noise model code (same abbreviations as in §9) |
-| `-phi` | `0.0` | `GGM_1mphi` value (0 → use `6.9e-6` for PL/FN models) |
+| `-phi` | `0.0` | `GGM_1mphi` for a free GGM (code `GGM`); PL/FN/RW always use `6.9e-6` |
 | `-s` | *(all)* | Process a single named station instead of all |
-| `-t` | `20.0` | `OffsetThreshold` — minimum $\Delta\ln L$ to accept an offset |
+| `-t` | `16.27` (`--mom`: `20.0`) | Threshold on $T_3$ (default mode) or on $\Delta\ln L$ (`--mom`) |
 | `-maxoffsets` | `50` | Maximum number of offsets per station |
 | `-useRMLE` | off | Use Restricted Maximum Likelihood |
+| `--min_gap` | `30` | Minimum separation in days between two detected offsets (default mode) |
+| `--mom` | off | Use the univariate `.mom` mode |
 
-For each station the script:
+The threshold of `find_all_offsets` is set with `-t` on the command line:
+the control files are written by the script for every station, so a
+`findoffsets.ctl` prepared by the user is overwritten (with `--mom`, the value
+of `-t` is written into it as `OffsetThreshold`).
 
-1. Writes a temporary `removeoutliers.ctl` and runs `removeoutliers`,
-   saving the cleaned file to `./pre_files/`.
-2. Writes a temporary `findoffsets.ctl` and runs `findoffsets`,
-   updating the `.mom` file in `./pre_files/` with detected offsets.
-3. Reads `findoffsets.json` and stores the result under the station name.
-
-On completion it writes **`find_all_offsets.json`** with the combined
-results for all stations:
-
-```json
-{
-    "TEST":  {"offsets": [50784.0, 51034.0, 50284.0, 50334.0]},
-    "SITE2": {"offsets": []}
-}
-```
-
-Note: offset detection uses the `AmmarGrag` likelihood method.  For
-stations with more than 50 % missing data, add
-`LikelihoodMethod AmmarGrag` explicitly to the generated control file
-(or pre-create a `findoffsets.ctl` with that keyword) to override the
-automatic fallback to `FullCov`.
+**Choosing the threshold.** The default 16.27 is the statistically correct
+value for $\alpha = 0.001$ when the trajectory model and the noise model
+describe the data. Real GNSS time series contain signals that the model of
+trend, seasonal terms and offsets does not capture, and the best of thousands
+of candidate epochs is tested at every step, so with the default many epochs
+are detected that are not related to equipment changes or earthquakes: for
+the eight stations of Example 6 the default gives about 200 offsets against
+42 entries in the NGL catalogue. To avoid detecting too many false offsets in
+real GNSS series, a threshold `-t` between 30 and 70 is advised. Offset
+detection in real time series remains difficult; treat the detected epochs
+as candidates and compare them with the station log where possible. Offset detection
+uses `AmmarGrag`, except for stations with more than 50 % missing data,
+for which `FullCov` is used automatically.
 
 
 ## predicttrenderror
@@ -2767,7 +3005,9 @@ predicttrenderror [-i JSON] [-dt DAYS] [-t0 DAYS] [-t1 DAYS] [-seasonal] [-graph
 The tool writes `trend_sigma.out` and optionally plots trend uncertainty
 (in the same physical unit as the input, per year) versus series length
 for the estimated noise model.  All noise models supported by
-`estimatetrend` are handled, including ARFIMA and ARMA.
+`estimatetrend` are handled, including ARFIMA and ARMA, except `Matern`.
+The `estimatetrend` run must have had `TimeUnit days` (or `seconds`) in its
+control file, because the time unit is read from the JSON file.
 
 
 ## simulatenoise
@@ -2775,7 +3015,10 @@ for the estimated noise model.  All noise models supported by
 `simulatenoise` generates synthetic time series with prescribed noise
 properties.  It is fully documented in Example 3 (§4.3) and the Quick
 Reference (`simulatenoise.ctl`).  Run `simulatenoise` from a directory
-containing a `simulatenoise.ctl` control file.
+containing a `simulatenoise.ctl` control file, or give the control file with
+`-i FILE`. The noise amplitudes (and $\kappa$, $1-\phi$ or $\phi$ when they
+are not set in the control file) are asked for on the screen; they can also
+be fed from a file, as in Example 3.
 
 
 ## convert\_rlrdata2mom
@@ -2868,7 +3111,7 @@ value and prints the corresponding calendar date.
 
 ## plot\_ts
 
-`plot_ts` is a fast time-series viewer located in `src/plot_ts.py`.  It
+`plot_ts` is a fast time-series viewer located in `src/hector/plot_ts.py`.  It
 supports both plain-text files (mom, gen, ASCII) and netCDF4 files (`.ncf` or `.nc`).
 
 ```
@@ -2878,7 +3121,7 @@ plot_ts -i FILE -cy CHANNEL [options]
 | Flag | Description |
 |------|-------------|
 | `-i FILE` | input file (`.mom` / ASCII text, or `.ncf` / `.nc`) |
-| `-cx` | x-axis: **column number** (1-based integer, text files) or **channel name** (`.ncf`/`.nc`); defaults to `time` for netCDF4 |
+| `-cx` | x-axis: **column number** (1-based integer; required for text files) or **channel name** (`.ncf`/`.nc`); defaults to `time` for netCDF4 |
 | `-cy` | y-axis: column number (text) or channel name (`.ncf`/`.nc`) — **required** |
 | `-cy2` | overlay a second channel on the same axes, or the second vector component for `-m` (column number for text files, channel name for `.ncf`/`.nc`) |
 | `-cy3` | overlay a third channel on the same axes, or the third vector component for `-m` (column number for text files, channel name for `.ncf`/`.nc`) |
@@ -2920,80 +3163,83 @@ they are the next two columns after `-cy`.
 
 # Quick Reference for the Control-Files
 
+The keyword `interpolate`, which still appears in some example control
+files, is ignored: gaps are always treated as missing data.
+
 ## removeoutliers.ctl
 
 This file is read by `removeoutliers`.
 
 | Keyword | Value(s) |
 |---------|----------|
-| `DataFile` | name of file with observations |
-| `DataDirectory` | directory where file with observations is stored |
-| `OutputFile` | name of file with observations *and* estimated model in .mom format |
-| `TS_format` | `mom` (default) \| `ncf` — selects the file format |
-| `ColumnName` | name of the channel to read (required when `TS_format ncf`) |
-| `component` | only required for the .enu and .neu format |
-| `interpolate` | yes\|no |
-| `DegreePolynomial` | degree of polynomial: 0–6 (optional, default=1) |
-| `estimatemultitrend` | yes\|no (optional, default=no. If yes, then `DegreePolynomial` keyword is ignored. Only linear trends are estimated) |
+| `DataFile` | name of file with observations (required) |
+| `DataDirectory` | directory where file with observations is stored (optional, default `.`) |
+| `OutputFile` | name of the file with the cleaned observations, in the format of the input (required) |
+| `TS_format` | `mom` (default) \| `gen` \| `ncf` — selects the file format; `.ncf`/`.nc` files are recognised automatically |
+| `ColumnName` | channel to clean in a `.ncf` file (optional; default: the channels `e`, `n` and `u`) |
+| `TimeUnit` | `days` (optional; for mom and ncf files only `days` is accepted) |
+| `DegreePolynomial` | degree of polynomial: 0–12 (optional, default=1) |
+| `estimatemultitrend` | yes\|no (optional, default=no). If yes, a ramp is added for every `# break` epoch, on top of the polynomial |
 | `estimatepostseismic` | yes\|no (optional, default=no) |
 | `estimateslowslipevent` | yes\|no (optional, default=no) |
 | `seasonalsignal` | yes\|no (kept for backward compatibility; prefer `periodicsignals`) |
 | `halfseasonalsignal` | yes\|no (kept for backward compatibility; prefer `periodicsignals`) |
 | `periodicsignals` | a sequence of numbers representing the period in days (optional). Example: `365.25 182.625` |
-| `estimateoffsets` | yes\|no |
+| `estimateoffsets` | yes\|no (optional, default=yes) |
 | `ScaleFactor` | a number to scale the observations (optional, default=1) |
 | `PhysicalUnit` | the physical unit of the observations |
 | `IQ_factor` | the number used to scale the interquartile range (DataSnooping mode) |
-| `Spike_factor` | the number used to scale MAD(first differences) (SpikeDetector mode) |
+| `Spike_factor` | the number used to scale MAD(first differences) (SpikeDetector mode; used when present) |
 | `estimatemultivariate` | yes\|no (optional, default=no) |
 | `MultiVariateFile` | Name of the geophysical signal file (`.mom` for one signal, `.ncf` for named channels) |
 | `MultiVariateDir` | Directory of the signal file (optional, defaults to `DataDirectory`) |
 | `MultiVariateSignals` | Space-separated channel names to read from a `.ncf` signal file |
-| `JSON` | yes\|no (optional, default=no. If yes, then file `removeoutliers.json` is created) |
+| `ReferenceEpoch` | `year month day` — reference epoch for the nominal bias (optional) |
+| `PlotName` | name of the figure in `data_figures/` (optional, default: name of the data file) |
+| `Verbose` | yes\|no (optional, default=yes) |
 
-Note that this program also produces a file called
-`removeoutliers.out` that contains the epoch of the outliers, one
-on each line. Its purpose is to facilitate importing this information into
-other programs. However, one should consider using the JSON file
-`removeoutliers.json` for this purpose.
+Exactly one of `IQ_factor` and `Spike_factor` is needed. The file
+`removeoutliers.json` with the removed epochs is always written.
 
 
 ## estimatetrend.ctl and findoffsets.ctl
 
 These files are read by `estimatetrend` and `findoffsets` respectively.
 They share all keywords listed below; `findoffsets.ctl` additionally
-accepts `OffsetThreshold` and `MaxOffsets`.
+accepts `OffsetThreshold` and `MaxOffsets`. `DataFile`, `OutputFile`,
+`PhysicalUnit` and `NoiseModels` are required.
 
 | Keyword | Value(s) |
 |---------|----------|
 | `DataFile` | name of file with observations |
-| `DataDirectory` | directory where file with observations is stored |
-| `OutputFile` | name of file with observations *and* estimated model in .mom format |
-| `TS_format` | `mom` (default) \| `ncf` — selects the file format |
-| `ColumnName` | name of the channel to read (required when `TS_format ncf`) |
+| `DataDirectory` | directory where file with observations is stored (optional, default `.`) |
+| `OutputFile` | name of file with observations *and* estimated model, in the format of the input |
+| `TS_format` | `mom` (default) \| `gen` \| `ncf` — selects the file format; `.ncf`/`.nc` files are recognised automatically |
+| `ColumnName` | name of the channel to read (required for `.ncf` files) |
 | `UseResiduals` | `yes`\|`no` (optional, default=`no`). When `yes`, subtract `<channel>_model` from the observations before analysis (ncf only) |
-| `component` | only required for the .enu and .neu format |
-| `interpolate` | yes\|no |
-| `DegreePolynomial` | degree of polynomial: 0–6 (optional, default=1) |
-| `estimatemultitrend` | yes\|no (optional, default=no. If yes, then `DegreePolynomial` keyword is ignored. Only linear trends are estimated) |
+| `TimeUnit` | `days` (optional; for mom and ncf files only `days` is accepted; needed by `predicttrenderror`) |
+| `DegreePolynomial` | degree of polynomial: 0–12 (optional, default=1) |
+| `estimatemultitrend` | yes\|no (optional, default=no). If yes, a ramp is added for every `# break` epoch, on top of the polynomial |
 | `estimatepostseismic` | yes\|no (optional, default=no) |
 | `estimateslowslipevent` | yes\|no (optional, default=no) |
 | `seasonalsignal` | yes\|no (kept for backward compatibility; prefer `periodicsignals`) |
 | `halfseasonalsignal` | yes\|no (kept for backward compatibility; prefer `periodicsignals`) |
 | `periodicsignals` | a sequence of numbers, separated by spaces, representing the period of the periodic signals in days (optional). Example: `365.25 182.625` |
-| `estimateoffsets` | yes\|no |
+| `estimateoffsets` | yes\|no (optional, default=yes) |
 | `ScaleFactor` | a number to scale the observations (optional, default=1) |
 | `PhysicalUnit` | the physical unit of the observations |
-| `useRMLE` | yes\|no (optional, default=no). Use Restricted Maximum Likelihood. **Recommended: yes** for v3.0. |
-| `NoiseModels` | choose any set from: `White`, `FlickerGGM`, `RandomWalkGGM`, `Powerlaw`, `Matern`, `ARFIMA`, `ARMA` and `GGM`. Recommended for GNSS: `GGM White` |
-| `LikelihoodMethod` | choose one from: `AmmarGrag` or `FullCov` (optional, default=`AmmarGrag` if percentage of missing data is less than 50% of the whole time series, otherwise `FullCov` is used). In v3.0 `AmmarGrag` uses the GSA for long series. |
+| `useRMLE` | yes\|no (optional, default=no). Use Restricted Maximum Likelihood. **Recommended: yes**. |
+| `NoiseModels` | choose any set from: `White`, `Powerlaw`, `GGM`, `FlickerGGM`, `RandomWalkGGM`, `Matern`, `ARFIMA`, `ARMA`, `AR1` and `VaryingAnnual`. Recommended for GNSS: `GGM White` |
+| `LikelihoodMethod` | `AmmarGrag` or `FullCov` (optional, not case-sensitive). Default: ordinary least squares when `White` is the only noise model; otherwise `AmmarGrag` if at most 50% of the epochs are missing, else `FullCov`. `AmmarGrag` uses the GSA for long series. |
 | `AR_p` | number of AR coefficients (only for ARFIMA or ARMA) |
 | `MA_q` | number of MA coefficients (only for ARFIMA or ARMA) |
-| `GGM_1mphi` | value of $1-\phi$ (optional, only for GGM). Recommended: `6.9e-06` |
-| `kappa_fixed` | keep value of spectral index fixed to given value (optional, only for Powerlaw, Matern and GGM) |
+| `GGM_1mphi` | value of $1-\phi$ (optional, for `GGM`, `FlickerGGM` and `RandomWalkGGM`; estimated when absent). Recommended: `6.9e-06` |
+| `kappa_fixed` | keep value of spectral index fixed to given value (optional, only for `GGM` and `Matern`) |
 | `lambda_fixed` | keep value of lambda fixed (optional, only for Matern) |
+| `phi_ar1_fixed` | keep $\phi$ of the `AR1` model fixed (optional) |
+| `phi_varying_fixed` | keep $\phi$ of the `VaryingAnnual` model fixed (optional) |
 | `RandomiseFirstGuess` | yes\|no (optional, default=no) |
-| `Tolerance` | Nelder-Mead convergence tolerance (optional; default 1e-4). Applied **relatively** to both the log-likelihood (`fatol` = `Tolerance` x |ln L|) and the parameters (which are searched in units of their starting values, `xatol` default 1e-6), so it means the same number of significant digits whatever the length of the series and whatever the scale of each parameter. A smaller value tightens convergence at the cost of more iterations. Example: `Tolerance 1e-8` |
+| `Tolerance` | Nelder-Mead convergence tolerance (optional). Without it, `fatol` = $10^{-4}\max(1,|\ln L_0|)$ and `xatol` = $10^{-6}$; when given, `fatol` = `Tolerance` $\times\max(1,|\ln L_0|)$ and `xatol` = `Tolerance`, where $\ln L_0$ is the log-likelihood at the starting point and the parameters are searched in units of their starting values. So it means the same number of significant digits whatever the length of the series and the scale of each parameter. Example: `Tolerance 1e-8` |
 | `MaxIterations` | maximum number of Nelder-Mead iterations (optional, default=10000) |
 | `ReferenceSpan` | span in years over which the modified standard deviation of the power-law/GGM noise is computed (optional, default=8.0). See the "Comparing Noise Amplitudes Between Stations" section. Use the same value for all stations being compared. Example: `ReferenceSpan 8.0` |
 | `estimatemultivariate` | yes\|no (optional, default=no) |
@@ -3001,31 +3247,48 @@ accepts `OffsetThreshold` and `MaxOffsets`.
 | `MultiVariateDir` | Directory of the signal file (optional, defaults to `DataDirectory`) |
 | `MultiVariateSignals` | Space-separated channel names to read from a `.ncf` signal file |
 | `ReferenceEpoch` | `year month day` — reference epoch for the nominal bias (optional, default: midpoint of the time series). Example: `ReferenceEpoch 2008 1 1` |
-| `JSON` | yes\|no (optional, default=no. If yes, then file `estimatetrend.json` or `findoffsets.json` is created) |
+| `PlotName` | name of the figure in `data_figures/` (optional, default: name of the data file) |
+| `OffsetEpochsFile` | text file with lines `STATION MJD`; these epochs are drawn as vertical lines in the figure (optional) |
+| `Verbose` | yes\|no (optional, default=yes) |
 | `OffsetThreshold` | minimum $\Delta\ln L$ to accept an offset in `findoffsets` (optional, default=20.0) |
 | `MaxOffsets` | maximum number of offsets to find in `findoffsets` (optional, default=50) |
+
+`estimatetrend.json` and `findoffsets.json` are always written.
+
+**Command-line flags of `estimatetrend`:**
+
+| Flag | Description |
+|------|-------------|
+| `-i FILE` | control file (default `estimatetrend.ctl`) |
+| `-graph` | display the observations and the fitted model on screen |
+| `-png` | save this figure as `data_figures/<PlotName>.png` |
+| `-eps` | save this figure as `data_figures/<PlotName>.eps` |
+
+`findoffsets` has only the flag `-i FILE` (default `findoffsets.ctl`).
 
 
 ## estimatespectrum.ctl
 
-This file is read by `estimatespectrum`, which creates `estimatespectrum.out`
-(or the file named by `OutputFile`).  When called with the `-model` flag,
-`estimatespectrum` also reads the noise model parameters from
-`estimatetrend.json` (produced by `estimatetrend` when `JSON yes` is set)
-and writes the model PSD to `modelspectrum.out`.  This replaces the
-separate `modelspectrum` program from Hector C++ v2.2.
+This file is read by `estimatespectrum`, which writes `estimatespectrum.out`.
+When the input has a model column (or model channel), the spectrum of the
+observations minus the model is computed. When called with the `-model`
+flag, `estimatespectrum` also reads the noise model parameters from
+`estimatetrend.json` and writes the model PSD to `modelspectrum.out`.
+This replaces the separate `modelspectrum` program from Hector C++ v2.2.
 
 | Keyword | Value(s) |
 |---------|----------|
-| `DataFile` | name of file with observations |
-| `DataDirectory` | directory where file with observations is stored |
-| `OutputFile` | name of file where computed spectra will be saved (optional, default=`estimatespectrum.out`) |
-| `PhysicalUnit` | the physical unit of the observations (required when using `-model`) |
-| `TimeUnit` | time unit string, e.g. `days` (optional) |
-| `interpolate` | yes\|no |
+| `DataFile` | name of file with observations (required) |
+| `DataDirectory` | directory where file with observations is stored (optional, default `.`) |
+| `TS_format` | `mom` (default) \| `gen` \| `ncf` |
+| `ColumnName` | name of the channel to read (required for `.ncf` files) |
+| `PhysicalUnit` | the physical unit of the observations (required) |
+| `TimeUnit` | `days` (optional; for mom and ncf files only `days` is accepted) |
 | `ScaleFactor` | a number to scale the observations (optional, default=1) |
 | `NumberOfSegments` | number of equal-length segments to divide the time series into (optional, default=4) |
 | `Fraction` | fraction of each segment tapered to zero at both ends by a split-cosine-bell (Tukey) window (optional, default=0.1) |
+| `PlotName` | name of the figure in `psd_figures/` (optional, default: name of the data file) |
+| `Verbose` | yes\|no (optional, default=yes) |
 
 Overlap is fixed at 50%, so `NumberOfSegments = 4` produces 7 Welch periodograms.
 
@@ -3033,6 +3296,7 @@ Overlap is fixed at 50%, so `NumberOfSegments = 4` produces 7 Welch periodograms
 
 | Flag | Description |
 |------|-------------|
+| `-i FILE` | control file (default `estimatespectrum.ctl`) |
 | `-model` | overlay the theoretical noise model PSD; reads `estimatetrend.json` by default |
 | `-j FILE` | use `FILE` instead of `estimatetrend.json` when `-model` is active |
 | `-graph` | display the PSD plot on screen |
@@ -3042,7 +3306,9 @@ Overlap is fixed at 50%, so `NumberOfSegments = 4` produces 7 Welch periodograms
 
 ## simulatenoise.ctl
 
-This file is read by `simulatenoise`.
+This file is read by `simulatenoise`. The files are written as
+`<SimulationDir>/<SimulationLabel>_<k>.mom`; the control file must not
+contain `DataFile`.
 
 | Keyword | Value(s) |
 |---------|----------|
@@ -3051,12 +3317,18 @@ This file is read by `simulatenoise`.
 | `NumberOfSimulations` | number of simulations |
 | `NumberOfPoints` | length of each simulation |
 | `SamplingPeriod` | specifies the time step in days |
-| `NoiseModels` | choose any set from: `White`, `Flicker`, `RandomWalk`, `FlickerGGM`, `RandomWalkGGM`, `Powerlaw`, `ARFIMA`, `ARMA` and `GGM` |
-| `AR_p` | number of AR coefficients (only for ARFIMA or ARMA) |
-| `MA_q` | number of MA coefficients (only for ARFIMA or ARMA) |
-| `GGM_1mphi` | value of $1-\phi$ (optional, only for GGM) |
-| `TimeNoiseStart` | number of extra points before the first observation used for FFT spin-up (optional, default=0). A value of 1000 is recommended for coloured noise models. |
+| `NoiseModels` | choose any set from: `White`, `Powerlaw`, `Flicker`, `RandomWalk`, `GGM`, `Matern`, `AR1` and `VaryingAnnual` |
+| `GGM_1mphi` | value of $1-\phi$ for `GGM` (optional; asked for when absent) |
+| `kappa_fixed` | spectral index for `Matern` (optional; asked for when absent) |
+| `lambda_fixed` | $\lambda$ for `Matern` (optional; asked for when absent) |
+| `phi_fixed` | $\phi$ for `VaryingAnnual` (optional; asked for when absent) |
+| `TimeNoiseStart` | number of extra points simulated before the first observation and discarded, to avoid spin-up effects (optional, default=0). A value of 1000 is recommended for coloured noise models. |
+| `Trend`, `NominalBias` | linear trend (unit per year) and bias added to the noise (optional, both together, default 0) |
+| `AnnualSignal` | amplitude of an annual cosine added to the noise (optional, default 0) |
 | `RepeatableNoise` | yes\|no. Each time `simulatenoise` is run, the same synthetic time series are created. Default is no. |
+
+The noise amplitudes are asked for on the screen, in the order of
+`NoiseModels`.
 
 
 # License
@@ -3622,4 +3894,241 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
 3. **`1-phi` is printed in scientific notation.**  At the values actually used
    (e.g. 6.9e-6) the previous fixed-point format printed `0.0000`.  John
    Langbein's suggestion.
+
+
+## Version 3.1.7
+
+1. **`removeoutliers` now plots NCF (NetCDF) files.**  The `-graph`, `-png`
+   and `-eps` flags were silently ignored for `.ncf`/`.nc` input: the
+   multi-channel code path returned before the plotting code was reached, so
+   no figure appeared and no message explained why.  Each processed channel
+   now gets its own figure -- observed in blue, cleaned in red, with a
+   calendar date axis -- saved as `data_figures/<station>_<column>.png` (or
+   `.eps`) so that the channels of a multi-channel file do not overwrite each
+   other.  Reported by Francisco Neves.
+
+## Version 3.1.8
+
+1. **The dense missing-data matrix F is built lazily.**  Only the AmmarGrag
+   likelihood method reads F (size $m \times n_{\rm gaps}$); ordinary
+   least-squares (pure white noise) and FullCov never touch it.  F was
+   nevertheless allocated whenever a file was read, so a long series with
+   many gaps -- e.g. 220,000 samples of which 44% are flagged, for which F
+   would need 155 GB -- could not be analysed at all, even with a white
+   noise model that never needs the matrix.  F is now materialised only
+   when AmmarGrag asks for it, with a preemptive check against available
+   memory that explains the alternatives (`LikelihoodMethod FullCov`, or a
+   pure `White` noise model) instead of letting the operating system kill
+   the process.
+2. **Gap classification is exact at high sampling rates.**  Reading a
+   time series inserted NaNs by stepping through each gap one sampling
+   period at a time; at 800 Hz (sampling period $1.4\times10^{-8}$ days)
+   the NCF reader's absolute tolerance exceeded the sampling period, so
+   high-rate NetCDF files could not be read at all, and the mom reader
+   drifted off the grid across long gaps because the
+   `# sampling period` header kept only ~5 significant digits.  All
+   readers now count whole sampling periods between consecutive epochs
+   (no accumulation), snap the sampling period to the file's own time
+   span, and `momwrite` stores sub-$10^{-4}$-day periods in scientific
+   notation.  See the new section *Sampling rates and time-axis
+   precision*.
+3. **`removeoutliers` and `estimatetrend` report out-of-memory conditions
+   with a clear message and exit code 1** instead of a Python traceback
+   (or a silent kill on Linux).
+
+## Version 3.1.9
+
+1. **Numerical-stability guard in the Generalised Schur Algorithm.**  At
+   every step of the recursion the reflection coefficient is checked to
+   satisfy $|\gamma_k| < 1$, the defining property of a numerically
+   positive-definite Toeplitz matrix.  On violation (which can only occur
+   at extreme ill-conditioning, near condition numbers of $10^{15}$)
+   Hector no longer produces silent NaNs but falls back automatically to
+   the Durbin-Levinson recursion, and ultimately to the dense `FullCov`
+   path.  On healthy data the results are bit-identical to version 3.1.8.
+2. **The paper scripts ship with the package.**  `hector-examples` now
+   also unpacks `paper_scripts/`, containing the benchmark drivers, the
+   synthetic series generators, and the raw results of the paper
+   *"Faster analysis of GNSS time series"* (Journal of Geodesy):
+   `run_all.py` re-creates every figure of that paper from the shipped
+   results (about 5 minutes) or regenerates them from scratch
+   (`--full`), and `setup_tools.py` locates or asks for the optional
+   external tools (Hector C++ v2.2, R with the gmwmx2 package) used by
+   the timing comparisons, which are skipped gracefully when absent.
+   The same material is archived at
+   https://doi.org/10.5281/zenodo.22889030.
+
+## Version 3.1.10
+
+1. **Matern spectral index corrected — old Matern $\kappa$ values must be
+   doubled.**  Up to version 3.1.9 (and in the C++ version 2.2) the Matern
+   model used $\alpha = 2d$ while it reported $\kappa = -2d$, so the printed
+   and stored $\kappa$ was only half of the true spectral slope $-2\alpha$
+   of [@Lillyetal2016].  Now $\alpha = d$, so $\kappa$ is the true slope,
+   with the same meaning as for the other power-law models.  This also
+   applies to `kappa_fixed` in `estimatetrend.ctl` and `simulatenoise.ctl`
+   and to the Matern spectrum drawn by `estimatespectrum`.  **Multiply
+   Matern $\kappa$ values obtained with older versions by two** to get the
+   actual spectral index.  Because a Matern process needs $\alpha > 1/2$
+   for a finite variance, $\kappa$ is restricted to $-3 < \kappa < -1$:
+   the model cannot represent noise flatter than flicker noise (see the
+   section on the Matern noise model).  A `kappa_fixed` of $-1$ or higher
+   is now refused with an error message instead of silently producing a
+   meaningless covariance.
+2. **Keeping only one of the two Matern parameters fixed no longer
+   crashes.**  Setting just `kappa_fixed` or just `lambda_fixed` stopped
+   with an `AttributeError`.
+3. **Combinations of three or more noise models are now estimated
+   correctly — older fits with three or more models, two of them with
+   free parameters, should be rerun.**  Two errors in the combination of
+   noise models have been fixed:
+   - each noise model now checks its own parameters against its own
+     bounds.  Before, every model checked the parameters of the *first*
+     model, which gave wrong estimates whenever at least two models had
+     free parameters (for example `Powerlaw AR1 White` returned
+     $\kappa = 0$ for data with $\kappa = -0.8$, and `GGM Matern White`
+     did not converge).  **Results of such combinations obtained with
+     versions 3.0.0–3.1.9 should be recomputed.**
+   - the fraction of the last noise model is now one minus the sum of all
+     other fractions, so the reported fractions add up to one.  For
+     combinations in which at most one model has free parameters, such as
+     `FlickerGGM RandomWalkGGM White`, the estimated noise amplitudes,
+     trend and uncertainties were already correct and are unchanged; only
+     the reported fractions were wrong.
+
+   Combinations of two noise models, such as the recommended `GGM White`,
+   are not affected by any of these changes.
+
+## Version 3.1.11
+
+1. **Offsets without observations between them no longer crash
+   `estimatetrend`.**  Two offsets inside the same data gap, or an offset
+   before the first or after the last observation, gave the design matrix
+   two identical columns (or a copy of the intercept or a column of
+   zeros).  The program then stopped with "Singular matrix" or "Matrix is
+   not positive definite", or, worse, returned a meaningless trend without
+   any warning.  As in the C++ version 2.2, such offsets are now removed:
+   offsets outside the observation span are ignored and of several offsets
+   between two consecutive observations only the last one is kept.  Only
+   real observations count, so this also applies to gaps created by
+   `removeoutliers`.  Each removed offset is reported in the output.
+   Reported by Janusz Bogusz.
+
+## Version 3.1.12
+
+1. **Redundant offsets are now removed exactly as in Hector 2.2.**  When
+   several offsets fall between two consecutive observations, the first
+   one listed in the header is kept (version 3.1.11 kept the last one).
+   The estimated trend, offsets and other parameters do not depend on this
+   choice, but the log-likelihood, AIC and BIC do slightly, because the
+   gap epochs enter the determinant of $H^TH$.  With this change all of
+   them agree with Hector 2.2.
+
+## Version 3.1.13
+
+1. **The phase of periodic signals now refers to 1 January 2000, as in
+   Hector 2.2.**  Up to version 3.1.12 the cosine and sine terms were
+   computed from the first epoch of the time series, so the estimated
+   phase (and the separate cosine and sine coefficients) depended on the
+   day of the year on which the series started.  Now $t_0$ is 1 January
+   2000 (MJD 51544), so the annual phase is the phase within the calendar
+   year and can be compared between stations and with Hector 2.2.  The
+   fitted model, trend, offsets and noise parameters are not affected.
+   The amplitude can change slightly when the uncertainties of the cosine
+   and sine terms differ, because its computation uses their mean.
+   **Cosine, sine and phase values obtained with versions 3.0.0–3.1.12
+   differ from those of this version.**
+2. **The phase uncertainty now follows Hector 2.2.**  The Monte Carlo
+   estimate of the phase uses the separate uncertainties of the cosine and
+   sine terms instead of their mean, and a fixed random seed, so that the
+   printed phase no longer changes slightly from run to run.
+3. **`ARMA` with more than one AR coefficient and `ARFIMA` work again.**
+   Since version 3.0 they stopped at the first likelihood evaluation
+   (`IndexError` or "Matrix is not positive definite"). The search now
+   starts, as in Hector 2.2, with all coefficients equal to 0.1, and the AR
+   roots are always computed correctly. The results agree with Hector 2.2
+   (Example 2: AR(5) and ARFIMA(1,0)).
+4. **Post-seismic and slow-slip terms.** `# log` headers were written to
+   `OutputFile` as `# exp`, and any file with a `# tanh` header made
+   `estimatetrend` stop while writing `OutputFile`. The slow-slip term
+   $\tanh$ is now applied at all epochs, as in the model equation and in
+   Hector 2.2 (it was set to zero before $t_k$). The keywords
+   `estimatepostseismic` and `estimateslowslipevent` again default to no,
+   as in Hector 2.2 and as documented; since version 3.0 they defaulted to
+   yes. **Fits of files with `# exp`, `# log` or `# tanh` headers made with
+   versions 3.0.0–3.1.12 should be redone.**
+5. **`UseResiduals yes` now analyses the residuals.** It subtracted the
+   `<channel>_residual` channel, so the model was analysed instead.
+6. **`TimeNoiseStart` works.** `simulatenoise` simulated the extra points
+   but did not discard them, so the spin-up was always included; now, as
+   in Hector 2.2, the first `TimeNoiseStart` points are skipped. The
+   keyword is optional (default 0). Example 3 has been regenerated; its
+   input file `simulatenoise.inp` contained an extra number, so the series
+   were simulated with the wrong noise amplitudes.
+7. **`phi_ar1_fixed` works** (it made the `AR1` model crash or was ignored).
+8. **`findoffsets` on `.ncf` files stores the detected offsets** in
+   `OutputFile`, as offset events of the analysed channel, and
+   `find_all_offsets` no longer drops the existing per-channel offset and
+   post-seismic variables when it writes its `.ncf` files.
+9. **`find_all_offsets`: the multivariate test statistic is now
+   $T_3 = 2\sum\Delta\ln L$, as documented.** Up to version 3.1.12 the
+   plain sum $\sum\Delta\ln L$ was compared with the threshold, so the
+   default 16.27 ($\chi^2(3)$, $\alpha=0.001$) acted as $T_3 > 32.5$
+   ($\alpha \approx 4\times10^{-7}$). With this version more offsets are
+   detected; `find_all_offsets_ncf.json` gives both `T3` and the summed
+   `delta_lnL`. The default stays 16.27, but for real GNSS series a
+   threshold between 30 and 70 is advised (section `find_all_offsets`);
+   `-t 32.54` reproduces the results of earlier versions. The pre-computed
+   `obs_files/` of Example 6 have been regenerated.
+10. **`removeoutliers` on `.ncf` files uses all keywords** of the control
+   file (e.g. `DegreePolynomial`, post-seismic terms), not only a fixed
+   subset, and stops with a clear message when neither `IQ_factor` nor
+   `Spike_factor` is given.
+11. Smaller fixes: the GGM output marks the fixed one of $d$ and $1-\phi$;
+    `estimate_all_trends -phi` writes the value with full precision;
+    leftover debug output was removed from `removeoutliers`,
+    `estimatespectrum` and `estimatetrend`; `estimatetrend.json` no longer
+    contains the misspelt key `PhyiscalUnit`; the non-existing program
+    `modelspectrum` is no longer installed (use `estimatespectrum -model`);
+    `hector-examples` describes the examples correctly.
+12. **Manual.** The worked examples, keyword tables, defaults and
+    command-line flags were checked against the code and corrected
+    throughout.
+
+## Version 3.2.0
+
+1. **Exact gap correction without approximations.**  For time series with
+   missing data, the log-likelihood needs the gap matrix
+   $\mathbf{M}=\mathbf{F}^T\mathbf{C}^{-1}\mathbf{F}$, the block of the inverse
+   covariance matrix that belongs to the missing epochs.  Versions 3.1.x
+   approximated it by a circulant (Chan) matrix, used as a preconditioner of
+   a conjugate-gradient solver, and estimated its log-determinant with
+   stochastic Lanczos quadrature (eight random probes, fixed seed).  The
+   trend and its uncertainty were correct, but the log-likelihood carried an
+   error of a few hundredths (up to 0.074 at 40 % missing data), which
+   entered likelihood-ratio tests and information criteria.  Version 3.2.0
+   builds $\mathbf{M}$ exactly from the two Gohberg–Semencul vectors that the
+   Toeplitz solver already provides, with one running sum per gap-epoch
+   separation, and factorises it with a Cholesky decomposition.  The
+   log-likelihood now agrees with the full-covariance method to about
+   $10^{-9}$, nothing depends on random numbers, and a run is 1.1–1.4 times
+   faster than with version 3.1.13 on one core (10 % missing data).  The
+   Matérn fall-back of version 3.1.1 is no longer needed, because the exact
+   matrix is always used.  **Log-likelihood, AIC and BIC values of gapped
+   series change in the second or third decimal** compared with versions
+   3.1.0–3.1.13; the estimated parameters change negligibly.
+2. **Single-threaded by default.**  Hector restricts the linear-algebra
+   library underneath NumPy to one thread (see the note in the
+   installation chapter), so that several Hector programs can run side by
+   side without competing for the cores.  Setting any of
+   `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`,
+   `VECLIB_MAXIMUM_THREADS` or `NUMEXPR_NUM_THREADS` yourself restores
+   multi-threading.  The variable `HECTOR_FFTW_THREADS` of version 3.1.1 no
+   longer exists, because the FFTW gap matrix-vector product it controlled
+   has been removed.
+3. **No crash when a factorisation fails.**  If the noise parameters tried
+   by the optimiser give a covariance or gap matrix that cannot be
+   factorised in double precision, that trial is now rejected and the
+   search continues, instead of `estimatetrend` stopping with
+   "Matrix is not positive definite".
 

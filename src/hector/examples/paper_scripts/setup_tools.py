@@ -17,7 +17,7 @@ Run it once before `run_all.py --full` if the automatic detection of
 
 Everything else in this directory is pure Python and needs no setup.
 """
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other

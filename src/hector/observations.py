@@ -3,7 +3,7 @@
 # A simple interface that reads and writes mom-files and stores
 # them into a Python class 'observations'.
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other

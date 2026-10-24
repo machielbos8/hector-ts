@@ -6,12 +6,15 @@ Numerical experiments of the paper
 
 | Directory        | Paper figures | Contents |
 |------------------|---------------|----------|
-| stability_test/  | Fig. 7 | GSA / Durbin-Levinson vs dense Cholesky on ill-conditioned Toeplitz matrices |
-| gap_sweep/       | Fig. 6 | fast path vs dense FullCov at 0-40 % gaps, uniform + clustered patterns |
-| vs_cpp_gmwmx2/   | Figs. 3-5 | Gram-matrix illustration; timing vs Hector C++ v2.2 and vs the gmwmx2 R package |
+| stability_test/  | Fig. 6 | GSA / Durbin-Levinson vs Cholesky on ill-conditioned Toeplitz matrices |
+| gap_sweep/       | Fig. 5 | fast path vs FullCov at 0-40 % gaps, uniform + clustered patterns |
+| single_core/     | Section 5 text | threads, memory and parallel runs of single-core Hector v3.2 |
+| vs_cpp_gmwmx2/   | Figs. 3-4, Table 4 | timing vs Hector C++ v2.2 and vs the gmwmx2 R package; evaluation counts with both stopping rules |
 
 Each directory contains the scripts AND the raw results measured for the
-paper (Apple M4, macOS), so every figure can be re-created immediately:
+paper (Apple M4, macOS), so every figure and Table 4 can be re-created
+immediately (hector-ts 3.2 or later; the scripts may be started from any
+directory):
 
     python3 run_all.py --check   # which optional external tools are present
     python3 run_all.py           # quick: smoke tests + all figures (~5 min)
@@ -23,8 +26,8 @@ scaling with series length and gap fraction, which any machine reproduces.
 ## Optional external tools (only for the vs_cpp_gmwmx2 comparisons)
 
 Everything except the two timing *comparisons* is pure Python and needs
-only the hector-ts package.  The comparisons of the paper's Figs. 4-5
-additionally require:
+only the hector-ts package.  The comparisons of the paper's Figs. 3-4
+and Table 4 additionally require:
 
   - **Hector C++ v2.2** (https://teromovigo.com/hector/): the
     `estimatetrend` binary of that version must be reachable on your

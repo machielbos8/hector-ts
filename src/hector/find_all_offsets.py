@@ -12,7 +12,7 @@
 # other settings are passed via command-line flags (same style as
 # estimate_all_trends.py).
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -295,7 +295,7 @@ def _multivariate_forward_search(station, ncf_path, pre_dir,
 def main():
 
     print("\n*******************************************")
-    print("    find_all_offsets, version 3.1.13.")
+    print("    find_all_offsets, version 3.2.0.")
     print("*******************************************\n")
 
     parser = argparse.ArgumentParser(

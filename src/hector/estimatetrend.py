@@ -2,7 +2,7 @@
 #
 # This program estimates a trend from the observations.
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -76,7 +76,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    estimatetrend, version 3.1.13.")
+        print("    estimatetrend, version 3.2.0.")
         print("***************************************")
 
    

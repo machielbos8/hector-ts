@@ -15,7 +15,7 @@
 # Build with:
 #   python setup_schur_gsa.py build_ext --inplace   (from hector-ts/code/)
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # cython: language_level=3
 # cython: boundscheck=False

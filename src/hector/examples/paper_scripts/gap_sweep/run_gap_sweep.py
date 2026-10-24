@@ -37,8 +37,14 @@ Usage (hector-dev venv python, from this directory):
     python3 run_gap_sweep.py                 # full sweep, resumes
     python3 run_gap_sweep.py --smoke         # 10yr/10% only, 1 seed
     python3 run_gap_sweep.py --max-hours 6   # stop cleanly after budget
+    python3 run_gap_sweep.py --out gap_sweep_results_v320.jsonl --label v3.2.0
+                                             # separate results file, label per record
+
+Gap masks are seeded with hash() of a tuple containing a str, which Python
+randomises per process: the series are reproducible only through the cached
+obs_files/*.mom (written once, reused) -- keep that directory.
 """
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -195,8 +201,8 @@ def write_mom(path, t, y):
 def write_ctl(ctl_path, mom_path, out_path, method):
     ctl_path.write_text(
         f"DataFile            {mom_path.name}\n"
-        f"DataDirectory       {mom_path.parent}\n"
-        f"OutputFile          {out_path}\n"
+        "DataDirectory       .\n"
+        f"OutputFile          {out_path.name}\n"
         "interpolate         no\n"
         "PhysicalUnit        mm\n"
         "TimeUnit            days\n"
@@ -214,6 +220,10 @@ def run_hector(mom_path, method):
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         ctl = tmp / "estimatetrend.ctl"
+        # the control file holds names relative to tmp only: Hector splits
+        # its values on whitespace, so a path with a space would break it
+        if mom_path.parent != tmp:
+            shutil.copy(mom_path, tmp / mom_path.name)
         write_ctl(ctl, mom_path, tmp / "out.mom", method)
         t0 = time.perf_counter()
         ret = subprocess.run([HECTORP_BIN, "-i", str(ctl)],
@@ -271,10 +281,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--max-hours", type=float, default=None)
+    ap.add_argument("--out", default=None,
+                    help="results file name in this directory")
+    ap.add_argument("--label", default=None,
+                    help="stored in every record (e.g. the Hector version)")
     args = ap.parse_args()
 
-    results_path = HERE / ("gap_sweep_smoke.jsonl" if args.smoke else
-                           "gap_sweep_results.jsonl")
+    results_path = HERE / (args.out or ("gap_sweep_smoke.jsonl" if args.smoke
+                                        else "gap_sweep_results.jsonl"))
 
     done = set()
     if results_path.exists():
@@ -328,6 +342,8 @@ def main():
             res, wall = {"error": "timeout"}, float(TIMEOUT_S)
 
         rec = {"cell": cell, "wall_s": wall, "result": extract(res)}
+        if args.label:
+            rec["label"] = args.label
         with open(results_path, "a") as fp:
             fp.write(json.dumps(rec) + "\n")
 

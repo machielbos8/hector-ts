@@ -22,7 +22,7 @@ Colour encodes the method (Okabe-Ito blue/orange/grey, CVD-validated),
 marker shape encodes the matrix family; method is additionally encoded by
 marker fill so identity survives greyscale print.
 """
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -42,7 +42,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 HERE = Path(__file__).parent
+# paper figures are also copied into docs/figures, but only inside the
+# development tree (recognised by the manuscript next to it), never into a
+# user's own docs/ directory
 DOCS_FIG = HERE.parents[2] / "docs" / "figures"
+IN_DEV_TREE = (HERE.parents[2] / "docs" / "hector_schur.tex").exists()
 
 EPS = np.finfo(float).eps
 
@@ -150,9 +154,8 @@ def main():
         ax.set_xlim(1e2, 3e16)
 
     ax1.text(2e11, 2e-4, r"$\kappa\,\epsilon$", color="0.45", fontsize=8)
-    ax1.set_ylabel(r"$|\Delta \ln\det \mathbf{C}|$")
-    ax2.set_ylabel(r"$|\Delta(\mathbf{x}^{\!\top}\mathbf{C}^{-1}\mathbf{x})|"
-                   r"\,/\,\mathbf{x}^{\!\top}\mathbf{C}^{-1}\mathbf{x}$")
+    ax1.set_ylabel(r"absolute error of $\ln\det \mathbf{C}$")
+    ax2.set_ylabel(r"relative error of $\mathbf{x}^{\!\top}\mathbf{C}^{-1}\mathbf{x}$")
     ax2.set_xlabel(r"condition number $\kappa(\mathbf{C})$")
 
     # method legend (colours) + family legend (shapes)
@@ -163,11 +166,15 @@ def main():
         Line2D([], [], marker="o", ls="none", mfc="none", mec=C_DL, ms=5,
                label="Durbin-Levinson"),
         Line2D([], [], marker="x", ls="none", color=C_DENSE, ms=5,
-               label="dense Cholesky (vs 40-digit ref.)"),
+               label="Cholesky"),
     ]
     fam_handles = [Line2D([], [], marker=FAM_MARK[f], ls="none", mfc="0.55",
                           mec="0.35", ms=5, label=FAM_LABEL[f])
                    for f in FAM_MARK]
+    # Cholesky is checked against the 40-digit reference, which exists only
+    # for the small prolate matrices; listed right after them
+    fam_handles.insert(1, Line2D([], [], marker="x", ls="none", color=C_DENSE,
+                              ms=5, label="prolate (Cholesky)"))
     leg1 = ax1.legend(handles=meth_handles, loc="upper left", fontsize=7,
                       frameon=False, borderaxespad=0.2)
     ax1.add_artist(leg1)
@@ -177,7 +184,7 @@ def main():
     fig.align_ylabels()
     fig.tight_layout(h_pad=0.6)
     outs = [HERE / "stability_figure.png", HERE / "stability_figure.pdf"]
-    if DOCS_FIG.is_dir():        # only in the development tree
+    if IN_DEV_TREE:
         outs += [DOCS_FIG / "stability_figure.pdf",
                  DOCS_FIG / "stability_figure.png"]
     for out in outs:

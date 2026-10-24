@@ -8,12 +8,13 @@ Driver for the numerical experiments of the paper
 
 Three experiment directories accompany this script:
 
-  stability_test/   GSA / Durbin-Levinson vs dense Cholesky on
-                    ill-conditioned Toeplitz matrices        (paper Fig. 7)
-  gap_sweep/        fast path vs dense FullCov at 0-40 % gaps,
-                    uniform and clustered patterns           (paper Fig. 6)
+  stability_test/   GSA / Durbin-Levinson vs Cholesky on
+                    ill-conditioned Toeplitz matrices        (paper Fig. 6)
+  gap_sweep/        fast path vs FullCov at 0-40 % gaps,
+                    uniform and clustered patterns           (paper Fig. 5)
+  single_core/      threads, memory and parallel runs   (paper Section 5 text)
   vs_cpp_gmwmx2/    estimatetrend vs Hector C++ v2.2 and vs the
-                    gmwmx2 R package                         (paper Figs. 4, 5)
+                    gmwmx2 R package              (paper Figs. 3, 4, Table 4)
 
 Modes
   --check    report which optional external tools are available and exit
@@ -33,7 +34,7 @@ External tools (only for vs_cpp_gmwmx2, checked at run time):
 All results are written next to the scripts; nothing outside these
 directories is touched.
 """
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -49,7 +50,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).resolve().parent
 PY = sys.executable
 
 
@@ -128,7 +129,8 @@ def main():
                    sweep / "gap_sweep_results.jsonl"]
         if run_cmp:
             shipped += [cmp_ / "comparison_results.json",
-                        cmp_ / "cpp_comparison_results.json"]
+                        cmp_ / "cpp_comparison_results.json",
+                        cmp_ / "v22rule_check.jsonl"]
         for f in shipped:
             keep = f.with_suffix(f.suffix + ".m4-shipped")
             if f.exists() and not keep.exists():
@@ -136,9 +138,13 @@ def main():
                 print(f"  shipped results set aside: {keep.name}")
         ok &= run([PY, "run_stability.py"], stab, "stability experiment")
         ok &= run([PY, "run_gap_sweep.py"], sweep, "gap-fraction sweep")
+        ok &= run([PY, "run_single_core.py"], HERE / "single_core",
+                  "threads, memory and parallel runs (Section 5)")
         if run_cmp:
             ok &= run([PY, "run_comparison.py"], cmp_, "Hector vs gmwmx2")
             ok &= run([PY, "run_vs_cpp.py"], cmp_, "Hector v3 vs C++ v2.2")
+            ok &= run([PY, "v22rule_check.py"], cmp_,
+                      "Hector v3 with the stopping rule of v2.2 (Table 4)")
         else:
             print("\n=== Hector v2.2 / gmwmx2 comparisons SKIPPED "
                   "(external tools missing; see --check) ===")
@@ -149,10 +155,13 @@ def main():
         ok &= run([PY, "run_gap_sweep.py", "--smoke"], sweep,
                   "gap-fraction sweep (smoke)")
 
-    ok &= run([PY, "plot_stability_figure.py"], stab, "Fig. 7")
-    ok &= run([PY, "plot_gap_sweep_figure.py"], sweep, "Fig. 6")
-    ok &= run([PY, "run_comparison.py", "--replot"], cmp_, "Fig. 5")
-    ok &= run([PY, "run_vs_cpp.py", "--replot"], cmp_, "Fig. 4")
+    ok &= run([PY, "plot_stability_figure.py"], stab, "Fig. 6")
+    ok &= run([PY, "plot_gap_sweep_figure.py"], sweep, "Fig. 5")
+    ok &= run([PY, "run_comparison.py", "--replot"], cmp_, "Fig. 4")
+    ok &= run([PY, "run_vs_cpp.py", "--replot"], cmp_, "Fig. 3")
+    ok &= run([PY, "table4.py"], cmp_, "Table 4")
+    ok &= run([PY, "run_single_core.py", "--summary"], HERE / "single_core",
+              "Section 5: threads, memory, parallel runs")
 
     print("\n" + ("All steps completed." if ok
                   else "Some steps FAILED -- see messages above."))

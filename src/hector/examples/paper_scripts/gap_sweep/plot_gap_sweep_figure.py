@@ -6,7 +6,7 @@ Paper figure for the gap-fraction sweep (JoG revision; R1's FullCov-crossover
 question, R2's clustered-gap request).  Reads gap_sweep_results.jsonl.
 
   (a) median estimatetrend wall time vs gap fraction, one colour per series
-      length; solid/filled = AmmarGrag (GSA + CG gap correction),
+      length; solid/filled = AmmarGrag (GSA + exact gap correction),
       dashed/open = FullCov (dense Cholesky on the gap-free rows).
       Crosses = clustered gap pattern (block lengths bootstrapped from the
       eight real stations), showing timing is pattern-independent.
@@ -16,7 +16,7 @@ question, R2's clustered-gap request).  Reads gap_sweep_results.jsonl.
 Colours: Okabe-Ito quartet (CVD-validated); method carried by line style and
 marker fill, so identity survives greyscale print.
 """
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -36,7 +36,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 HERE = Path(__file__).parent
+# paper figures are also copied into docs/figures, but only inside the
+# development tree (recognised by the manuscript next to it), never into a
+# user's own docs/ directory
 DOCS_FIG = HERE.parents[2] / "docs" / "figures"
+IN_DEV_TREE = (HERE.parents[2] / "docs" / "hector_schur.tex").exists()
 
 YEARS = [10, 20, 30, 40]
 GAPS = [0.0, 10.0, 20.0, 30.0, 40.0]
@@ -98,7 +102,7 @@ def main():
     fig.align_ylabels()
     fig.tight_layout(h_pad=0.6)
     outs = [HERE / "gap_sweep_figure.png", HERE / "gap_sweep_figure.pdf"]
-    if DOCS_FIG.is_dir():        # only in the development tree
+    if IN_DEV_TREE:
         outs += [DOCS_FIG / "gap_sweep_figure.pdf",
                  DOCS_FIG / "gap_sweep_figure.png"]
     for out in outs:

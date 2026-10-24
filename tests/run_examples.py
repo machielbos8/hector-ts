@@ -426,6 +426,7 @@ def main():
             ('test_phase_reference', 'run_phase_reference_tests', 'phase'),
             ('test_arfima', 'run_arfima_tests', 'arfima'),
             ('test_model_fixes', 'run_model_fixes_tests', 'fixes'),
+            ('test_factorisation_failure', 'run_factorisation_failure_tests', 'factor-fail'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)

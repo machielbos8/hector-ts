@@ -2,7 +2,7 @@
 #
 # This program find all files in ./obs_files and estimate all trends.
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -193,7 +193,7 @@ def _load_estimatetrend_json():
 def main():
 
     print("\n*******************************************")
-    print("    estimate_all_trends, version 3.1.13.")
+    print("    estimate_all_trends, version 3.2.0.")
     print("*******************************************\n")
 
     parser = argparse.ArgumentParser(description='Estimate all trends')

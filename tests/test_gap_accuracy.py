@@ -5,9 +5,10 @@ test_gap_accuracy.py — gapped-data accuracy regression (AmmarGrag vs FullCov).
 Not an example: there is no golden trend and no workflow to show. At high gap
 fractions with RED noise the gap correction must be exact. The old Chan-circulant
 *direct* inverse under-estimated the parameter error bars (up to ~-50 % for
-random-walk noise) and biased the log-likelihood; the fix uses Chan only as a CG
-preconditioner and recovers the exact M^{-1} (error bars) and log|M| (CG-harvested
-stochastic Lanczos quadrature).
+random-walk noise) and biased the log-likelihood; v3.1 used Chan only as a CG
+preconditioner with a stochastic Lanczos estimate of log|M| (errors up to ~0.1);
+since v3.2 the gap Gram M is built exactly (displacement recurrence), so the
+error bars AND log|M| must match FullCov to rounding.
 
 This pins AmmarGrag (fast) to FullCov (brute-force exact) in exactly that regime.
 The parameter covariance C_theta and log|C| are data-independent, so the check is
@@ -52,8 +53,8 @@ CASES = [
     (7305, 1.00, 1.0e-4, 0.90, 0.40, "20yr 40% random-walk"),
     (3652, 1.00, 1.0e-4, 0.90, 0.50, "10yr 50% random-walk"),
 ]
-EB_TOL = 1.0e-3     # rate error-bar ratio AmmarGrag/FullCov must be 1 within 0.1 %
-LD_TOL = 0.5        # ln_det: CG-harvested SLQ residual (deterministic, fixed seed)
+EB_TOL = 1.0e-8     # rate error-bar ratio AmmarGrag/FullCov must be 1 to rounding
+LD_TOL = 1.0e-6     # ln_det: exact since v3.2 (was 0.5 for the v3.1 SLQ estimate)
 
 
 def run_gap_accuracy_tests(verbose=True):
@@ -74,6 +75,8 @@ def run_gap_accuracy_tests(verbose=True):
         if verbose:
             print("    {0} {1}  (errbar AG/Full {2:.4f}, ln_det {3:+.3f})".format(
                   "[  OK  ]" if ok else "[ FAIL ]", label, ratio, dld))
+            print("             |errbar ratio - 1| = {0:.1e}, |d ln_det| = {1:.1e}".format(
+                  abs(ratio - 1.0), abs(dld)))
     return all_ok
 
 

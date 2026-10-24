@@ -12,7 +12,7 @@ Run from examples/ex8/:
     python3 run_vs_cpp.py            # full run (all cases)
     python3 run_vs_cpp.py --replot   # re-plot from cached JSON
 """
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -65,9 +65,12 @@ RESULTS_FILE = Path("cpp_comparison_results.json")
 FIG_PNG      = Path("cpp_comparison_figure.png")
 FIG_PDF      = Path("cpp_comparison_figure.pdf")
 
-# Also write figure to docs/figures for the paper
-DOCS_FIG_PDF = Path(__file__).parents[2] / "docs" / "figures" / "cpp_comparison_figure.pdf"
-DOCS_FIG_PNG = Path(__file__).parents[2] / "docs" / "figures" / "cpp_comparison_figure.png"
+# Also write figure to docs/figures for the paper, only inside the development
+# tree (recognised by the manuscript next to it)
+_DOCS = Path(__file__).resolve().parents[2] / "docs"
+IN_DEV_TREE  = (_DOCS / "hector_schur.tex").exists()
+DOCS_FIG_PDF = _DOCS / "figures" / "cpp_comparison_figure.pdf"
+DOCS_FIG_PNG = _DOCS / "figures" / "cpp_comparison_figure.png"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -75,8 +78,8 @@ DOCS_FIG_PNG = Path(__file__).parents[2] / "docs" / "figures" / "cpp_comparison_
 def _write_hectorp_ctl(ctl_path: Path, mom_path: Path, out_path: Path):
     ctl_path.write_text(
         f"DataFile            {mom_path.name}\n"
-        f"DataDirectory       {mom_path.parent}\n"
-        f"OutputFile          {out_path}\n"
+        "DataDirectory       .\n"
+        f"OutputFile          {out_path.name}\n"
         "interpolate         no\n"
         "PhysicalUnit        mm\n"
         "TimeUnit            days\n"
@@ -93,13 +96,13 @@ def _write_hectorp_ctl(ctl_path: Path, mom_path: Path, out_path: Path):
 def _write_cpp_ctl(ctl_path: Path, mom_path: Path, out_path: Path):
     ctl_path.write_text(
         f"DataFile            {mom_path.name}\n"
-        f"DataDirectory       {mom_path.parent}\n"
-        f"OutputFile          {out_path}\n"
+        "DataDirectory       .\n"
+        f"OutputFile          {out_path.name}\n"
         "interpolate         no\n"
         "PhysicalUnit        mm\n"
         "ScaleFactor         1.0\n"
         "seasonalsignal      yes\n"
-        "halfseasonalsignal  no\n"
+        "halfseasonalsignal  yes\n"      # same trajectory model as v3 (annual + semi-annual)
         "estimateoffsets     yes\n"
         "NoiseModels         GGM White\n"
         "GGM_1mphi           6.9e-06\n"
@@ -115,6 +118,9 @@ def run_hectorp(mom_path: Path) -> tuple[dict | None, float]:
         ctl  = tmp / "estimatetrend.ctl"
         out  = tmp / "out.mom"
         json_out = tmp / "estimatetrend.json"
+        # the control file holds names relative to tmp only: Hector splits
+        # its values on whitespace, so a path with a space would break it
+        shutil.copy(mom_path, tmp / mom_path.name)
         _write_hectorp_ctl(ctl, mom_path, out)
         FIN_DIR.mkdir(exist_ok=True)
 
@@ -140,6 +146,7 @@ def run_cpp(mom_path: Path) -> tuple[dict | None, float]:
         ctl      = tmp / "estimatetrend.ctl"
         out      = tmp / "out.mom"
         json_out = tmp / "estimatetrend.json"
+        shutil.copy(mom_path, tmp / mom_path.name)   # see run_hectorp
         _write_cpp_ctl(ctl, mom_path, out)
         FIN_DIR.mkdir(exist_ok=True)
 
@@ -161,6 +168,12 @@ def run_cpp(mom_path: Path) -> tuple[dict | None, float]:
         m = re.search(r"Total computing time:\s*([\d.]+)\s*sec", ret.stdout)
         if m:
             result["_cpp_internal_sec"] = float(m.group(1))
+        # Nelder-Mead evaluation count (asa047 icount, incl. its factorial
+        # test; excludes the numerical Hessian) and OpenMP thread count
+        m = re.search(r"Number of iterations\s*=\s*(\d+)", ret.stdout)
+        result["_nfev"] = int(m.group(1)) if m else None
+        m = re.search(r"\(threads\)\s*=\s*(\d+)", ret.stdout)
+        result["_threads"] = int(m.group(1)) if m else None
         return result, wall
 
 
@@ -222,7 +235,8 @@ def _ms(vals):
     v = [x for x in vals if x is not None]
     if not v:
         return None, None
-    return float(np.mean(v)), float(np.std(v, ddof=1) if len(v) > 1 else 0.0)
+    # median (as in the paper's text and tables) and sample std (error bars)
+    return float(np.median(v)), float(np.std(v, ddof=1) if len(v) > 1 else 0.0)
 
 
 def make_figure(results: dict):
@@ -285,7 +299,7 @@ def make_figure(results: dict):
               handlelength=2.5, handletextpad=0.5)
 
     paths = [FIG_PNG, FIG_PDF]
-    if DOCS_FIG_PDF.parent.is_dir():     # only in the development tree
+    if IN_DEV_TREE:
         paths += [DOCS_FIG_PNG, DOCS_FIG_PDF]
     for path in paths:
         fig.savefig(path, dpi=200 if str(path).endswith(".png") else 150,
@@ -296,6 +310,9 @@ def make_figure(results: dict):
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    # all file names below are relative to this directory, wherever the
+    # script is started from
+    os.chdir(Path(__file__).resolve().parent)
     if "--replot" not in sys.argv and not PRE_DIR.exists():
         print("pre_files/ not found — run run_comparison.py first to "
               "generate data (or use --replot with the shipped results)")

@@ -2,7 +2,7 @@
 #
 # Script to convert PSMSL rlrdata 2 mom format
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # 28/6/2026 Machiel Bos
 #

@@ -124,22 +124,8 @@ def _fftw_ext_kwargs():
     return kwargs
 
 
-def _fftw_threads_ext_kwargs():
-    """Like _fftw_ext_kwargs but also links the threaded FFTW library."""
-    kwargs = _fftw_ext_kwargs()
-    # fftw3_threads depends on fftw3 → list it first for GNU ld.
-    kwargs['libraries'] = ['fftw3_threads'] + list(kwargs.get('libraries', []))
-    return kwargs
-
-
 def _build_ext_modules():
-    """Cythonize all extensions.
-
-    hector._gap_matvec is marked *optional*: it links libfftw3_threads, which
-    some minimal FFTW installs lack.  If it fails to build, setuptools emits a
-    warning and continues, and AmmarGrag transparently uses its pure-numpy
-    gap-matvec fallback.  All other extensions remain required.
-    """
+    """Cythonize all extensions (all required)."""
     exts = cythonize(
         [
             "src/hector/_epoch_scan_gaps.pyx",
@@ -153,18 +139,13 @@ def _build_ext_modules():
                 **_fftw_ext_kwargs(),
             ),
             Extension(
-                "hector._gap_matvec",
-                sources=["src/hector/_gap_matvec.pyx"],
-                optional=True,
-                **_fftw_threads_ext_kwargs(),
+                "hector._exact_gram",
+                sources=["src/hector/_exact_gram.pyx"],
+                include_dirs=[np.get_include()],
             ),
         ],
         language_level="3",
     )
-    # cythonize may return fresh Extension objects; re-assert optionality.
-    for e in exts:
-        if getattr(e, "name", None) == "hector._gap_matvec":
-            e.optional = True
     return exts
 
 
@@ -173,7 +154,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="hector-ts",
-    version="3.1.13",
+    version="3.2.0",
     author="Machiel Bos",
     author_email="machielbos@protonmail.com",
     description="A collection of programs to analyse geodetic time series",

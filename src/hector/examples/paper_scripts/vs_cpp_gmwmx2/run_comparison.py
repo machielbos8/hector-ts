@@ -13,7 +13,7 @@ Run from examples/ex8/:
     python3 run_comparison.py           # full run
     python3 run_comparison.py --replot  # re-plot from cached comparison_results.json
 """
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -240,11 +240,12 @@ def run_all():
 # ── Figure ────────────────────────────────────────────────────────────────────
 
 def _ms(vals):
-    """Mean and sample std of a list, filtering None."""
+    """Median and sample std of a list, filtering None."""
     v = [x for x in vals if x is not None]
     if not v:
         return None, None
-    return float(np.mean(v)), float(np.std(v, ddof=1) if len(v) > 1 else 0.0)
+    # median (as in the paper's text and tables) and sample std (error bars)
+    return float(np.median(v)), float(np.std(v, ddof=1) if len(v) > 1 else 0.0)
 
 
 def make_figure(results):
@@ -275,7 +276,9 @@ def make_figure(results):
         sims    = rec["sims"]
 
         hp_t_mu, hp_t_sd = _ms([s["hectorp_time"]           for s in sims if s.get("hectorp")])
-        gm_t_mu, gm_t_sd = _ms([s["gmwmx2"]["run_time_sec"] for s in sims if s.get("gmwmx2")])
+        # wall time of the whole Rscript run (start-up + data reading + fit),
+        # the same measure as for Hector, not gmwmx2's internal run_time_sec
+        gm_t_mu, gm_t_sd = _ms([s["gmwmx2_time"]                for s in sims if s.get("gmwmx2")])
 
         if hp_t_mu is not None:
             d = data[(gap_pct, "hectorp")]
@@ -316,6 +319,9 @@ def make_figure(results):
 
 if __name__ == "__main__":
     # pre_files/ is created on demand by run_all(); no precondition needed.
+    # All file names are relative to this directory, wherever the script is
+    # started from (run_vs_cpp.py reads the series written here).
+    os.chdir(Path(__file__).resolve().parent)
 
     t_total = time.perf_counter()
 

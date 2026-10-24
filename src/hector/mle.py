@@ -2,7 +2,7 @@
 #
 # Class which computes the log-likelihood and searches for the maximum value.
 #
-# This file is part of Hector 3.1.
+# This file is part of Hector 3.2.
 #
 # Hector is distributed under a source-available license.
 # It may be used free of charge for academic, research, and other
@@ -185,8 +185,11 @@ class MLE:
         [theta,C_theta,self.ln_det_C,self.sigma_eta] = \
 	     self.method.compute_leastsquares(t,self.H,self.x,self.F,samenoise)
 
-        #--- Negative RSS means infeasible parameter combination; penalise
-        if not math.isfinite(self.sigma_eta):
+        #--- Negative RSS means infeasible parameter combination, and a
+        #    non-finite log-determinant a covariance matrix that is not
+        #    numerically positive definite (failed factorisation); penalise
+        #    both, so the optimiser steers away from these noise parameters.
+        if not (math.isfinite(self.sigma_eta) and math.isfinite(self.ln_det_C)):
             return 1.0e30 + penalty
 
         #--- Compute log-likelihood
@@ -199,6 +202,8 @@ class MLE:
             self.compute_ln_det_I(C_theta)
             logL += -0.5*(self.ln_det_I - self.ln_det_HH)
        
+        if not math.isfinite(logL):
+            return 1.0e30 + penalty
         return -logL + penalty
 
 

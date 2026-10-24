@@ -1,4 +1,4 @@
-# Hector v3.1
+# Hector v3.2
 
 Hector estimates trends, periodic signals, and offsets in geodetic time series
 with correlated noise. It uses Restricted Maximum Likelihood Estimation (RMLE)
@@ -47,7 +47,7 @@ python3 run_all.py --full     # regenerate the raw results (hours)
 
 See `paper_scripts/README.md` for details.
 
-Open `hector_manual_v3.1.pdf` first — it explains the workflow, all
+Open `hector_manual_v3.2.pdf` first — it explains the workflow, all
 control-file parameters, and walks through every example step by step.
 The examples are self-contained: each has its own data and control files
 ready to run.
@@ -129,30 +129,35 @@ pip install hector-ts
 
 If you use Hector in your research, please cite:
 
-> Bos, M.S. (2026). Fast noise analysis and offset detection for continuous GNSS time series. *Journal of Geodesy* (submitted).
+> Bos, M.S. (2026). Faster analysis of GNSS time series. *Journal of Geodesy* (submitted).
 
 ## Performance
 
-Hector v3.1 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.com/hector/).
+Hector v3.2 is a Python/Cython rewrite of [Hector C++ v2.2](https://teromovigo.com/hector/).
 The core Toeplitz factorisation uses the Generalised Schur Algorithm (O(*n* log²*n*))
-instead of Durbin-Levinson (O(*n*²)), and data gaps are handled exactly with an
-FFT-based conjugate-gradient solver. The speedup over C++ v2.2 grows with series
-length — up to ~24× at 40 years without gaps, and ~10× with 10% gaps:
+instead of Durbin-Levinson (O(*n*²)), and data gaps are handled exactly: the gap
+matrix is built directly from the two Gohberg–Semencul vectors of the Toeplitz
+solver.  Hector v3.2 runs on a single core, Hector v2.2 used eight threads; the
+speedup still grows with series length — up to ~28× at 40 years without gaps,
+and ~10× with 10% gaps:
 
-| Series | Gaps | Hector v3.1 (s) | Hector C++ v2.2 (s) | Speedup |
+| Series | Gaps | Hector v3.2 (s) | Hector C++ v2.2 (s) | Speedup |
 |:---    |  ---:|             ---:|                 ---:|    ---: |
-| 10 yr  |   0% |            1.13 |                 3.0 |    2.7× |
-| 20 yr  |   0% |            1.54 |                 7.0 |    4.5× |
-| 30 yr  |   0% |            2.32 |                25.3 |   10.9× |
-| 40 yr  |   0% |            2.73 |                64.8 |   23.8× |
-| 10 yr  |  10% |            2.32 |                 4.5 |    1.9× |
-| 20 yr  |  10% |            4.44 |                16.4 |    3.7× |
-| 30 yr  |  10% |            9.73 |                60.5 |    6.2× |
-| 40 yr  |  10% |           14.22 |               146.3 |   10.3× |
+| 10 yr  |   0% |            1.13 |                 3.0 |    2.6× |
+| 20 yr  |   0% |            1.54 |                 6.7 |    4.3× |
+| 30 yr  |   0% |            2.28 |                25.1 |   11.0× |
+| 40 yr  |   0% |            2.50 |                69.1 |   27.6× |
+| 10 yr  |  10% |            1.68 |                 4.5 |    2.7× |
+| 20 yr  |  10% |            3.71 |                16.4 |    4.4× |
+| 30 yr  |  10% |            8.87 |                60.2 |    6.8× |
+| 40 yr  |  10% |           14.72 |               154.6 |   10.5× |
 
-*Median of ten realisations on Apple M4 Pro, GGM+White noise model,
-including offset estimation — the same run as Table 2 of the paper.
-Reproduce with `hector-examples` → `paper_scripts/run_all.py`.*
+*Median of ten realisations on an Apple M4 (one core for v3.2, eight threads for
+v2.2), GGM+White noise model, annual and semi-annual signals, offset estimation
+— the same runs as Fig. 3 and Table 4 of the paper.  Because each run uses one
+core and less than 0.5 GB of memory, many stations are analysed fastest by
+running several Hector programs side by side.  Reproduce with
+`hector-examples` → `paper_scripts/run_all.py`.*
 
 ## License
 
