@@ -258,9 +258,9 @@ def make_figure(results):
 
     styles = {
         (0.0,  "hectorp"): dict(color="#0072B2", ls=":", lw=1.4, marker="o",
-                                ms=4, label="Hector v3, 0% gaps"),
+                                ms=4, label="Hector v3.2, 0% gaps"),
         (10.0, "hectorp"): dict(color="#0072B2", ls="-",  lw=1.4, marker="o",
-                                ms=4, label="Hector v3, 10% gaps"),
+                                ms=4, label="Hector v3.2, 10% gaps"),
         (0.0,  "gmwmx2"):  dict(color="#E69F00", ls=":", lw=1.4, marker="s",
                                 ms=4, label="gmwmx2, 0% gaps"),
         (10.0, "gmwmx2"):  dict(color="#E69F00", ls="-",  lw=1.4, marker="s",

@@ -67,7 +67,7 @@ FIG_PDF      = Path("cpp_comparison_figure.pdf")
 
 # Also write figure to docs/figures for the paper, only inside the development
 # tree (recognised by the manuscript next to it)
-_DOCS = Path(__file__).resolve().parents[2] / "docs"
+_DOCS = Path(__file__).resolve().parents[3] / "docs"
 IN_DEV_TREE  = (_DOCS / "hector_schur.tex").exists()
 DOCS_FIG_PDF = _DOCS / "figures" / "cpp_comparison_figure.pdf"
 DOCS_FIG_PNG = _DOCS / "figures" / "cpp_comparison_figure.png"
@@ -248,9 +248,9 @@ def make_figure(results: dict):
 
     styles = {
         (0.0,  "hectorp"): dict(color="#0072B2", ls=":", lw=1.4, marker="o",
-                                ms=4, label="Hector v3, 0% gaps"),
+                                ms=4, label="Hector v3.2, 0% gaps"),
         (10.0, "hectorp"): dict(color="#0072B2", ls="-",  lw=1.4, marker="o",
-                                ms=4, label="Hector v3, 10% gaps"),
+                                ms=4, label="Hector v3.2, 10% gaps"),
         (0.0,  "cpp"):     dict(color="#E69F00", ls=":", lw=1.4, marker="s",
                                 ms=4, label="Hector v2.2, 0% gaps"),
         (10.0, "cpp"):     dict(color="#E69F00", ls="-",  lw=1.4, marker="s",

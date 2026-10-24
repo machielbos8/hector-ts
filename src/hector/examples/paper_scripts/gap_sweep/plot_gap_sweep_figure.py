@@ -85,8 +85,8 @@ def main():
                      title="series length", title_fontsize=7, ncols=2)
     # method key as text (style, not colour)
     ax1.set_ylim(top=6e3)
-    ax1.text(0.02, 0.97, "solid, filled: AmmarGrag\n"
-                         "dashed, open: FullCov\n"
+    ax1.text(0.02, 0.97, "solid, filled: fast path\n"
+                         "dashed, open: dense reference\n"
                          "crosses: clustered gaps",
              transform=ax1.transAxes, fontsize=7, va="top", color="0.25",
              bbox=dict(fc="white", ec="none", alpha=0.75, pad=1.5))
@@ -94,7 +94,7 @@ def main():
     ax2.set_yscale("log")
     ax2.axhline(1.0, color="0.6", lw=0.9)
     ax2.text(1.0, 1.15, "crossover", fontsize=7, color="0.4")
-    ax2.set_ylabel("FullCov / AmmarGrag")
+    ax2.set_ylabel("dense / fast")
     ax2.set_xlabel("gap fraction (%)")
     ax2.grid(True, which="major", color="0.9", lw=0.5, zorder=0)
     ax2.set_xticks(GAPS)
