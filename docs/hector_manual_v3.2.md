@@ -4131,4 +4131,12 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
    factorised in double precision, that trial is now rejected and the
    search continues, instead of `estimatetrend` stopping with
    "Matrix is not positive definite".
+4. **Paper scripts.**  `hector-examples` unpacks the scripts and raw
+   results of the revised paper *"Faster analysis of GNSS time series"*:
+   besides the figures, `run_all.py` now also re-creates Table 4 (the
+   comparison with Hector 2.2, including the number of likelihood
+   evaluations under both stopping rules) and the single-core
+   measurements (threads, memory, parallel runs).  The scripts can be
+   started from any folder, also one whose path contains spaces.  The
+   same material is archived at https://doi.org/10.5281/zenodo.23617991.
 
