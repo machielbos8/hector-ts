@@ -57,6 +57,47 @@ EB_TOL = 1.0e-8     # rate error-bar ratio AmmarGrag/FullCov must be 1 to roundi
 LD_TOL = 1.0e-6     # ln_det: exact since v3.2 (was 0.5 for the v3.1 SLQ estimate)
 
 
+def _gap_order_checks(verbose):
+    """The gap epochs come from the NaNs of x (v3.2.1), not from the columns
+    of F: F with its columns in another order gives the same answer, and F
+    that does not match the NaNs is an error, not a wrong answer.  (With the
+    old argmax over the columns of F, shuffled columns handed unsorted gap
+    epochs to the exact Gram, which needs them strictly increasing.)"""
+    m, k = 2000, 400
+    t, H, x, F = _setup(m, 0.5, 1.0e-4, 0.8, k / m, seed=7)
+    rng = np.random.default_rng(8)
+    x = np.where(np.isnan(x), np.nan, rng.standard_normal(m))
+    ok_all = True
+
+    th0, C0, ld0, s0 = AmmarGrag().compute_leastsquares(t, H, x, F)
+    Fs = F[:, rng.permutation(F.shape[1])]
+    th1, C1, ld1, s1 = AmmarGrag().compute_leastsquares(t, H, x, Fs)
+    thF, CF, ldF, sF = FullCov().compute_leastsquares(t, H, x, F)
+    same = (np.array_equal(th0, th1) and np.array_equal(C0, C1)
+            and ld0 == ld1 and s0 == s1)
+    exact = (np.max(np.abs(th1 - thF)) < 1e-8 and abs(ld1 - ldF) < LD_TOL
+             and abs(s1 / sF - 1.0) < 1e-10)
+    ok = same and exact
+    ok_all = ok_all and ok
+    if verbose:
+        print("    {0} F with shuffled columns: identical result {1}, "
+              "matches FullCov {2}".format("[  OK  ]" if ok else "[ FAIL ]",
+                                           same, exact))
+
+    try:
+        AmmarGrag().compute_leastsquares(t, H, x, F[:, :-1])
+        ok, msg = False, "no error"
+    except ValueError as e:
+        ok, msg = "missing values" in str(e), str(e)
+    except Exception as e:
+        ok, msg = False, "{0}: {1}".format(type(e).__name__, e)
+    ok_all = ok_all and ok
+    if verbose:
+        print("    {0} F with one column too few: {1}".format(
+              "[  OK  ]" if ok else "[ FAIL ]", msg))
+    return ok_all
+
+
 def run_gap_accuracy_tests(verbose=True):
     """Return True iff AmmarGrag matches FullCov in every high-gap red-noise case."""
     if verbose:
@@ -77,6 +118,7 @@ def run_gap_accuracy_tests(verbose=True):
                   "[  OK  ]" if ok else "[ FAIL ]", label, ratio, dld))
             print("             |errbar ratio - 1| = {0:.1e}, |d ln_det| = {1:.1e}".format(
                   abs(ratio - 1.0), abs(dld)))
+    all_ok = _gap_order_checks(verbose) and all_ok
     return all_ok
 
 

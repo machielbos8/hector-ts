@@ -4148,6 +4148,14 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
    taken as zero, so the cosine of the model was always one and the model
    acted as an AR(1) process. It now uses the sampling period given with
    `-dt`.
+9. **Faster with missing data and with the varying seasonal models**
+   (after a patch by Matt King). The positions of the missing data are now
+   found once per likelihood evaluation from the data instead of by a
+   search through every column of the gap matrix: with 10 % missing data an
+   `estimatetrend` run takes about a quarter less time, with identical
+   results. The covariance of `VaryingAnnual` and `VaryingSemiAnnual` is
+   computed without Python loops, which makes a run with one of these
+   models about 15 % faster; the results change only in the last digits.
 
 ## Version 3.2.0
 

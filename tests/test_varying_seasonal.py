@@ -153,6 +153,19 @@ def _t_covariance_rows(check):
                   f"{type(obj).__name__:17s} row, dt {dt:.0f} d: "
                   f"max rel error {err:.0e}")
 
+    #--- The cosine is cached (v3.2.1): reusing one object with another
+    #    length or sampling period (predicttrenderror sets DeltaT after
+    #    construction) must not reuse a stale cosine
+    obj = _va_objects(1.0)[1]
+    worst = 0.0
+    for m2, dt in ((400, 1.0), (300, 1.0), (300, 7.0), (500, 7.0)):
+        obj.DeltaT = dt
+        t, _ = obj.create_t(m2, 0, [phi])
+        k2 = np.arange(m2)
+        ref = phi ** k2 * np.cos(2 * np.pi * k2 * dt / 182.625) / (2 * (1 - phi ** 2))
+        worst = max(worst, np.max(np.abs(t - ref)) / ref[0])
+    check(worst < 1e-12, f"cached cosine, other length / sampling: max rel error {worst:.0e}")
+
 
 def _t_fullcov(check, tmp):
     """GGM + White + VA + VSA with 10 % gaps: AmmarGrag ln L == FullCov ln L"""

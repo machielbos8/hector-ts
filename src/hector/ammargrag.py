@@ -196,9 +196,15 @@ class AmmarGrag(metaclass=SingletonMeta):
             self.y2 = np.fft.irfft(self.Fl2 * Fx, n=N_fft)[:m]
 
             if k > 0:
-                #--- Gap positions from indicator matrix F
-                self.gap_idx = np.array(
-                    [int(np.argmax(F[:, i])) for i in range(k)])
+                #--- Gap positions from the NaNs of x: strictly increasing,
+                #    as the exact Gram requires, and O(m).  An argmax over
+                #    every column of the dense m-by-k matrix F took a quarter
+                #    of the run time with 10 % gaps.  F is used for k only.
+                self.gap_idx = np.flatnonzero(np.isnan(x))
+                if self.gap_idx.size != k:
+                    raise ValueError(
+                        'gap matrix F has {0:d} columns but the data have '
+                        '{1:d} missing values'.format(k, self.gap_idx.size))
                 gap_idx = self.gap_idx
 
                 # ── Gram matrix M = G1 G1ᵀ − G2 G2ᵀ = Fᵀ C⁻¹ F ─────────────

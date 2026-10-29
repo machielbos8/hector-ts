@@ -97,17 +97,14 @@ class VaryingAnnual:
             phi = self.phi_fixed
             k_new = k
 
-        #--- Create first row vector of Covariance matrix
-        t = np.zeros(m)
+        #--- The cosine depends only on m and the sampling: keep it
+        key = (m, self.omega0, self.DeltaT)
+        if getattr(self, '_cos_key', None) != key:
+            self._cos = np.cos(self.omega0 * self.DeltaT * np.arange(m))
+            self._cos_key = key
 
-        #--- first, take care of power of phi
-        t[0] = 1.0/(2.0 * (1.0 - phi*phi))
-        for i in range(1,m):
-            t[i] = t[i-1]*phi
-        
-        #--- next, multiply with cosine
-        for i in range(1,m):
-            t[i] *= math.cos(self.omega0 * i * self.DeltaT)
+        #--- First row of the covariance matrix: phi^k cos(w0 k) / (2(1-phi^2))
+        t = np.power(phi, np.arange(m)) * self._cos / (2.0 * (1.0 - phi*phi))
 
         return t, k_new
 
