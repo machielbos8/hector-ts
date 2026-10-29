@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install FFTW3
         run: dnf install -y fftw-devel
       - name: Build wheels
@@ -29,7 +29,7 @@ jobs:
         run: |
           /opt/python/cp313-cp313/bin/pip install --quiet build
           /opt/python/cp313-cp313/bin/python -m build --sdist --outdir wheelhouse/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wheels-linux
           path: wheelhouse/
@@ -38,7 +38,7 @@ jobs:
     name: macOS arm64 wheels
     runs-on: macos-14   # Apple Silicon runner
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install FFTW3
         run: brew install fftw
       - name: Build wheels
@@ -47,7 +47,7 @@ jobs:
           CIBW_ARCHS_MACOS: "arm64"
           CIBW_ENVIRONMENT_MACOS: "FFTW_DIR=/opt/homebrew MACOSX_DEPLOYMENT_TARGET=14.0"
         run: pipx run cibuildwheel --platform macos --output-dir wheelhouse
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wheels-macos
           path: wheelhouse/*.whl
@@ -56,9 +56,9 @@ jobs:
     name: Windows wheels
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Cache vcpkg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             vcpkg
@@ -87,7 +87,7 @@ jobs:
           $env:CIBW_ARCHS_WINDOWS = "AMD64"
           $env:CIBW_ENVIRONMENT_WINDOWS = "FFTW_DIR='$($env:FFTW_ROOT)'"
           python -m cibuildwheel --platform windows --output-dir wheelhouse
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wheels-windows
           path: wheelhouse/*.whl
@@ -97,12 +97,12 @@ jobs:
     needs: [build_linux]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Download Linux wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: wheels-linux
           path: dist/
@@ -129,9 +129,9 @@ jobs:
     permissions:
       id-token: write   # required for PyPI trusted publisher
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: wheels-*
           merge-multiple: true
