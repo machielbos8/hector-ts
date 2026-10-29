@@ -14,7 +14,7 @@
 # cython: cdivision=True
 #===============================================================================
 
-from libc.math cimport log
+from libc.math cimport log, fabs, NAN
 import numpy as np
 cimport numpy as np
 
@@ -47,8 +47,14 @@ def compute(const double[::1] t):
 
     # ----- i = 0 : one-step predictor ----------------------------------
     gamma = -t[1] / delta
+    if not (fabs(gamma) < 1.0):
+        # Not positive definite: report ln|C| = NaN, which AmmarGrag and
+        # MLE turn into a penalty (the convention Schur.compute relies on).
+        return np.zeros(n), np.zeros(n), NAN, NAN
     r[0]  = gamma
-    delta = t[0] + t[1] * gamma
+    # delta_{k+1} = delta_k (1 - gamma^2): a product of positive numbers,
+    # free of the cancellation in t[0] + sum t*r when delta << t[0].
+    delta = delta * (1.0 - gamma * gamma)
     ln_det_C += log(delta)
 
     # ----- i = 1 .. n-2 ------------------------------------------------
@@ -61,17 +67,17 @@ def compute(const double[::1] t):
             dot1  += t[j + 1] * r[j]
 
         gamma = -(t[i + 1] + dot1) / delta
+        if not (fabs(gamma) < 1.0):
+            return np.zeros(n), np.zeros(n), NAN, NAN
 
-        # Pass 2: update r[1:i+1] from tmp  AND  accumulate dot2
+        # Pass 2: update r[1:i+1] from tmp
         #   r[j+1]  = tmp[j] + gamma * tmp[i-1-j]
-        #   dot2   += t[i-j]  * r[j+1]          (k = j+1 term of delta sum)
         r[0]  = gamma
-        dot2  = t[i + 1] * gamma                 # k = 0 term: t[i+1]*r[0]
         for j in range(i):
             r[j + 1] = tmp[j] + gamma * tmp[i - 1 - j]
-            dot2 += t[i - j] * r[j + 1]
 
-        delta     = t[0] + dot2
+        # Product form of the prediction-error variance (see above)
+        delta     = delta * (1.0 - gamma * gamma)
         ln_det_C += log(delta)
 
     # ----- Build l1 and l2 from r --------------------------------------

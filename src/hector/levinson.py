@@ -68,8 +68,13 @@ class Levinson(metaclass=SingletonMeta):
             else:
                 gamma = -(t[i + 1] + np.dot(t[1:i + 1], r[:i])) / delta
                 r[1:i + 1] = r[:i] + gamma * r[i - 1::-1]
+            if not abs(gamma) < 1.0:
+                #--- Not positive definite: ln|C| = NaN (a penalty upstream);
+                #    math.log of a negative delta would raise ValueError here.
+                return np.zeros(n), np.zeros(n), math.nan, math.nan
             r[0] = gamma
-            delta = t[0] + np.dot(t[1:i + 2], r[i::-1])
+            #--- Product form: no cancellation when delta << t[0]
+            delta = delta * (1.0 - gamma * gamma)
             ln_det_C += math.log(delta)
 
         l1 = np.zeros(n)

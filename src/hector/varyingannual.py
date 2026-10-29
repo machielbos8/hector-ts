@@ -16,6 +16,7 @@
 
 import numpy as np
 import math
+import sys
 from hector.control import Control
 from hector.observations import Observations
 
@@ -47,7 +48,7 @@ class VaryingAnnual:
             ts_format = 'mom'
         if ts_format not in ('mom', 'ncf'):
             print('VaryingAnnual requires mom or ncf format (MJD time axis).')
-            sys.exit()
+            sys.exit(1)
 
         self.omega0 = 2.0*math.pi/365.25
         self.DeltaT = observations.sampling_period

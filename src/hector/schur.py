@@ -58,6 +58,12 @@ class Schur(metaclass=SingletonMeta):
         """ Define Class variables
         """
 
+        #--- Without the compiled GSA every evaluation silently falls back to
+        #    O(n^2) Durbin-Levinson (3.7x slower at n = 5500): say so once.
+        if not _USE_CYTHON_GSA:
+            print('WARNING: compiled Schur/GSA extension not available; using '
+                  'the slower Durbin-Levinson recursion.', file=sys.stderr)
+
         # SchurGSA (Cython) manages its own FFTW plans via the direct FFTW3
         # C API; no Python-level FFT library is needed.
         self.multiply = self.multiply_numpy   # pure-numpy fallback (rarely used)

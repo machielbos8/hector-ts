@@ -145,9 +145,12 @@ def create_h(m,noisemodel,dt,ts_format,control):
         if not ts_format=='mom':
             print('Please think again, ts_format is not mom!!!')
             sys.exit()
-        try:
+        #--- Same keyword as estimatetrend; phi_fixed kept for old files
+        if 'phi_varying_fixed' in control.params:
+            phi = control.params['phi_varying_fixed']
+        elif 'phi_fixed' in control.params:
             phi = control.params['phi_fixed']
-        except:
+        else:
             print('phi: ', end='')
             phi = float(input())
         print('varying-annual noise amplitude: ', end='')
@@ -329,7 +332,12 @@ def main():
         sys.exit()
 
     #--- Create random number generator
-    if repeatablenoise==True:
+    #--- RandomSeed gives reproducible AND independent runs (different
+    #    seeds for different runs); RepeatableNoise alone always uses seed 0,
+    #    so two separate runs would share their random numbers.
+    if 'RandomSeed' in control.params:
+        rng = np.random.default_rng(int(control.params['RandomSeed']))
+    elif repeatablenoise==True:
         rng = np.random.default_rng(0)
     else:
         rng = np.random.default_rng()

@@ -1209,7 +1209,11 @@ the series and of their power spectra are written to `data_figures/` and
 
 In some cases it is desirable to create the same set of synthetic time series
 each time `simulatenoise` is run. To achieve this, one can set the
-keyword `RepeatableNoise` to yes.
+keyword `RepeatableNoise` to yes. It always uses the same random numbers, so
+two components simulated in separate runs (for example noise in one run and
+a seasonal signal in another) would be correlated. Use instead
+`RandomSeed` with a different integer for each run: every run is then
+reproducible and the runs are independent of each other.
 
 
 ## Example 4: Post-Seismic Relaxation
@@ -3322,11 +3326,12 @@ contain `DataFile`.
 | `GGM_1mphi` | value of $1-\phi$ for `GGM` (optional; asked for when absent) |
 | `kappa_fixed` | spectral index for `Matern` (optional; asked for when absent) |
 | `lambda_fixed` | $\lambda$ for `Matern` (optional; asked for when absent) |
-| `phi_fixed` | $\phi$ for `VaryingAnnual` (optional; asked for when absent) |
+| `phi_varying_fixed` | $\phi$ for `VaryingAnnual`, the same keyword as in `estimatetrend.ctl` (optional; the older `phi_fixed` is still accepted; asked for when both are absent) |
 | `TimeNoiseStart` | number of extra points simulated before the first observation and discarded, to avoid spin-up effects (optional, default=0). A value of 1000 is recommended for coloured noise models. |
 | `Trend`, `NominalBias` | linear trend (unit per year) and bias added to the noise (optional, both together, default 0) |
 | `AnnualSignal` | amplitude of an annual cosine added to the noise (optional, default 0) |
 | `RepeatableNoise` | yes\|no. Each time `simulatenoise` is run, the same synthetic time series are created. Default is no. |
+| `RandomSeed` | integer seed of the random-number generator (optional). Runs with the same seed give the same series, runs with different seeds independent ones. Takes precedence over `RepeatableNoise`. |
 
 The noise amplitudes are asked for on the screen, in the order of
 `NoiseModels`.
@@ -4095,6 +4100,32 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
 12. **Manual.** The worked examples, keyword tables, defaults and
     command-line flags were checked against the code and corrected
     throughout.
+
+## Version 3.2.1
+
+1. **`simulatenoise` reads $\phi$ of `VaryingAnnual` from
+   `phi_varying_fixed`** (reported by Matt King), the keyword that
+   `estimatetrend` uses. It read only `phi_fixed`, so with a control file
+   written for `estimatetrend` it asked for $\phi$; when the answers were
+   given in an input file, the noise amplitude was taken as $\phi$ and the
+   simulated series were far too small. `phi_fixed` is still accepted.
+2. **New keyword `RandomSeed` in `simulatenoise`** (reported by Matt King).
+   `RepeatableNoise yes` always uses seed 0, so components simulated in
+   separate runs were correlated. `RandomSeed` makes runs reproducible and,
+   with different seeds, independent.
+3. **Durbin–Levinson recursion** (reported by Matt King). The
+   prediction-error variance is now updated as
+   $\delta_{k+1}=\delta_k(1-\gamma_k^2)$, which avoids cancellation for
+   strongly correlated noise, and a covariance matrix that is not positive
+   definite is rejected (the trial is skipped, as in version 3.2.0) instead
+   of stopping the pure-Python version with `math domain error`. The
+   recursion is used for series of up to 1000 points and when the
+   generalised Schur algorithm fails.
+4. **Warning when the compiled Toeplitz solver is missing.** If the compiled
+   generalised Schur extension cannot be loaded, Hector now says so once
+   instead of silently using the slower Durbin–Levinson recursion.
+5. `VaryingAnnual` with an unsupported time-series format stops with its
+   intended message and a non-zero exit code, instead of a `NameError`.
 
 ## Version 3.2.0
 

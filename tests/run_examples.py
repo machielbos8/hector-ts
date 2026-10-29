@@ -427,6 +427,8 @@ def main():
             ('test_arfima', 'run_arfima_tests', 'arfima'),
             ('test_model_fixes', 'run_model_fixes_tests', 'fixes'),
             ('test_factorisation_failure', 'run_factorisation_failure_tests', 'factor-fail'),
+            ('test_levinson', 'run_levinson_tests', 'levinson'),
+            ('test_simulatenoise', 'run_simulatenoise_tests', 'simnoise'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)
