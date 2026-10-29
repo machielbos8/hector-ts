@@ -2512,8 +2512,8 @@ response coefficients.
 
 ## VaryingPeriodic (Band-Pass) Noise Model
 
-The amplitude of the annual signal is mostly not exactly constant over
-time but varies a little in a random manner. Amplitude modulation of a
+The amplitudes of the annual and semi-annual signals are mostly not
+exactly constant over time but vary a little in a random manner. Amplitude modulation of a
 periodic signal causes that the pure peak in the power-spectrum plot widens
 a bit. This can be viewed as a separate type of noise which can be added to
 the other noise models in the analysis.
@@ -2528,25 +2528,32 @@ speed up the computations, we use a variant. We use the results of
 signal is modelled by a first order autoregressive model, AR(1). The
 corresponding autocovariance function is:
 
-$$\gamma_i = \sigma^2 \frac{\phi^k}{2(1-\phi^2)}\cos(\omega_0 k)$$
+$$\gamma_k = \sigma^2 \frac{\phi^k}{2(1-\phi^2)}\cos(\omega_0 k)$$
 
 Besides an annoying overloading of the symbol $\phi$ for yet another noise
 model, this is just the autocovariance of the AR(1) process multiplied
 by a cosine and divided by a factor 2. $\omega_0$ is the angular frequency
-of the annual signal, $2\pi/365.25$ rad/day. This model needs a time axis in
-MJD (`mom` or `ncf` format). A varying annual signal is specified as follows
-(only the annual version is available):
+of the seasonal signal: $2\pi/365.25$ rad/day for `VaryingAnnual` and
+$2\pi/182.625$ rad/day for `VaryingSemiAnnual`; the lag $k$ is converted to
+days with the sampling period. These models need a time axis in MJD (`mom` or
+`ncf` format). Varying annual and semi-annual signals are specified as
+follows:
 
 ```
-NoiseModels        VaryingAnnual White
+NoiseModels        VaryingAnnual VaryingSemiAnnual White
 phi_varying_fixed  0.999
 ```
 
-As usual, one can estimate the value of $\phi$ (between 0 and 0.99999) or set
-it fixed by including `phi_varying_fixed` in the control file. Using the fact that
-$\cos(a)\cos(b)=[\cos(a+b)+\cos(a-b)]/2$, we have for the spectrum:
+Either model can also be used alone. As usual, one can estimate the value of
+$\phi$ (between 0 and 0.99999) or set it fixed by including
+`phi_varying_fixed` in the control file; this value is used by both models.
+Estimating both varying signals together with coloured noise is difficult:
+the likelihood can have more than one maximum, and a small semi-annual
+amplitude may not be resolvable. Fixing $\phi$ helps. Using the fact that
+$\cos(a)\cos(b)=[\cos(a+b)+\cos(a-b)]/2$, we have for the one-sided
+spectrum, with $\omega=2\pi f/f_s$:
 
-$$S(f)=\frac{\sigma^2}{f_s}\left[\frac{1}{1-2\phi\cos(\omega+\omega_0)+\phi^2}+
+$$S(f)=\frac{\sigma^2}{2f_s}\left[\frac{1}{1-2\phi\cos(\omega+\omega_0)+\phi^2}+
   \frac{1}{1-2\phi\cos(\omega-\omega_0)+\phi^2}\right]$$
 
 
@@ -2675,6 +2682,7 @@ GGMWN is the recommended combination for the analysis of GNSS time series.
 | AR1 | First-order autoregressive noise model | `AR1` |
 | MT  | Matern noise model | `Matern` |
 | VA  | Varying Annual (bandpass type noise; `estimate_all_trends` only) | `VaryingAnnual` |
+| VSA | Varying Semi-Annual (bandpass type noise; `estimate_all_trends` only) | `VaryingSemiAnnual` |
 
 
 ## removeoutliers
@@ -3234,7 +3242,7 @@ accepts `OffsetThreshold` and `MaxOffsets`. `DataFile`, `OutputFile`,
 | `ScaleFactor` | a number to scale the observations (optional, default=1) |
 | `PhysicalUnit` | the physical unit of the observations |
 | `useRMLE` | yes\|no (optional, default=no). Use Restricted Maximum Likelihood. **Recommended: yes**. |
-| `NoiseModels` | choose any set from: `White`, `Powerlaw`, `GGM`, `FlickerGGM`, `RandomWalkGGM`, `Matern`, `ARFIMA`, `ARMA`, `AR1` and `VaryingAnnual`. Recommended for GNSS: `GGM White` |
+| `NoiseModels` | choose any set from: `White`, `Powerlaw`, `GGM`, `FlickerGGM`, `RandomWalkGGM`, `Matern`, `ARFIMA`, `ARMA`, `AR1`, `VaryingAnnual` and `VaryingSemiAnnual`. Recommended for GNSS: `GGM White` |
 | `LikelihoodMethod` | `AmmarGrag` or `FullCov` (optional, not case-sensitive). Default: ordinary least squares when `White` is the only noise model; otherwise `AmmarGrag` if at most 50% of the epochs are missing, else `FullCov`. `AmmarGrag` uses the GSA for long series. |
 | `AR_p` | number of AR coefficients (only for ARFIMA or ARMA) |
 | `MA_q` | number of MA coefficients (only for ARFIMA or ARMA) |
@@ -3242,7 +3250,7 @@ accepts `OffsetThreshold` and `MaxOffsets`. `DataFile`, `OutputFile`,
 | `kappa_fixed` | keep value of spectral index fixed to given value (optional, only for `GGM` and `Matern`) |
 | `lambda_fixed` | keep value of lambda fixed (optional, only for Matern) |
 | `phi_ar1_fixed` | keep $\phi$ of the `AR1` model fixed (optional) |
-| `phi_varying_fixed` | keep $\phi$ of the `VaryingAnnual` model fixed (optional) |
+| `phi_varying_fixed` | keep $\phi$ of the `VaryingAnnual` and `VaryingSemiAnnual` models fixed (optional) |
 | `RandomiseFirstGuess` | yes\|no (optional, default=no) |
 | `Tolerance` | Nelder-Mead convergence tolerance (optional). Without it, `fatol` = $10^{-4}\max(1,|\ln L_0|)$ and `xatol` = $10^{-6}$; when given, `fatol` = `Tolerance` $\times\max(1,|\ln L_0|)$ and `xatol` = `Tolerance`, where $\ln L_0$ is the log-likelihood at the starting point and the parameters are searched in units of their starting values. So it means the same number of significant digits whatever the length of the series and the scale of each parameter. Example: `Tolerance 1e-8` |
 | `MaxIterations` | maximum number of Nelder-Mead iterations (optional, default=10000) |
@@ -3322,11 +3330,11 @@ contain `DataFile`.
 | `NumberOfSimulations` | number of simulations |
 | `NumberOfPoints` | length of each simulation |
 | `SamplingPeriod` | specifies the time step in days |
-| `NoiseModels` | choose any set from: `White`, `Powerlaw`, `Flicker`, `RandomWalk`, `GGM`, `Matern`, `AR1` and `VaryingAnnual` |
+| `NoiseModels` | choose any set from: `White`, `Powerlaw`, `Flicker`, `RandomWalk`, `GGM`, `Matern`, `AR1`, `VaryingAnnual` and `VaryingSemiAnnual` |
 | `GGM_1mphi` | value of $1-\phi$ for `GGM` (optional; asked for when absent) |
 | `kappa_fixed` | spectral index for `Matern` (optional; asked for when absent) |
 | `lambda_fixed` | $\lambda$ for `Matern` (optional; asked for when absent) |
-| `phi_varying_fixed` | $\phi$ for `VaryingAnnual`, the same keyword as in `estimatetrend.ctl` (optional; the older `phi_fixed` is still accepted; asked for when both are absent) |
+| `phi_varying_fixed` | $\phi$ for `VaryingAnnual` and `VaryingSemiAnnual`, the same keyword as in `estimatetrend.ctl` (optional; the older `phi_fixed` is still accepted; asked for when both are absent) |
 | `TimeNoiseStart` | number of extra points simulated before the first observation and discarded, to avoid spin-up effects (optional, default=0). A value of 1000 is recommended for coloured noise models. |
 | `Trend`, `NominalBias` | linear trend (unit per year) and bias added to the noise (optional, both together, default 0) |
 | `AnnualSignal` | amplitude of an annual cosine added to the noise (optional, default 0) |
@@ -4126,6 +4134,20 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
    instead of silently using the slower Durbin–Levinson recursion.
 5. `VaryingAnnual` with an unsupported time-series format stops with its
    intended message and a non-zero exit code, instead of a `NameError`.
+6. **The `VaryingSemiAnnual` noise model is back** (requested by Matt King).
+   As in Hector 2.2 it is the `VaryingAnnual` model at a period of 182.625
+   days, and both use `phi_varying_fixed`. It is available in
+   `estimatetrend`, `simulatenoise`, `estimatespectrum`, `predicttrenderror`
+   and, with the abbreviation `VSA`, in `estimate_all_trends`.
+7. **Model spectrum of `VaryingAnnual`.** The modelled power spectrum
+   that `estimatespectrum` draws for `VaryingAnnual` was $4/\pi$ times too
+   large; it now integrates to the variance of the model. The formula in the
+   manual was a factor 2 too large. The estimated noise parameters are not
+   affected.
+8. **`predicttrenderror` with `VaryingAnnual`.** The sampling period was
+   taken as zero, so the cosine of the model was always one and the model
+   acted as an AR(1) process. It now uses the sampling period given with
+   `-dt`.
 
 ## Version 3.2.0
 

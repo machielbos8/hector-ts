@@ -22,6 +22,8 @@ import numpy as np
 import argparse
 from hector.control import Control
 from hector.observations import Observations
+from hector.varyingannual import VaryingAnnual
+from hector.varyingsemiannual import VaryingSemiAnnual
 from scipy import signal
 from pathlib import Path
 from scipy.special import kv
@@ -141,10 +143,10 @@ def create_h(m,noisemodel,dt,ts_format,control):
         h[0] = 1.0;
         for i in range(1,m):
             h[i] = (d+i-1.0)/i * h[i-1] * (1.0-phi)
-    elif noisemodel=='VaryingAnnual':
+    elif noisemodel in ('VaryingAnnual','VaryingSemiAnnual'):
         if not ts_format=='mom':
             print('Please think again, ts_format is not mom!!!')
-            sys.exit()
+            sys.exit(1)
         #--- Same keyword as estimatetrend; phi_fixed kept for old files
         if 'phi_varying_fixed' in control.params:
             phi = control.params['phi_varying_fixed']
@@ -153,7 +155,12 @@ def create_h(m,noisemodel,dt,ts_format,control):
         else:
             print('phi: ', end='')
             phi = float(input())
-        print('varying-annual noise amplitude: ', end='')
+        if noisemodel=='VaryingAnnual':
+            period = VaryingAnnual.PERIOD
+            print('varying-annual noise amplitude: ', end='')
+        else:
+            period = VaryingSemiAnnual.PERIOD
+            print('varying-semi-annual noise amplitude: ', end='')
         sigma = float(input())
 
         #--- create gamma_x
@@ -164,7 +171,7 @@ def create_h(m,noisemodel,dt,ts_format,control):
 
         #--- next, multiply with cosine dt = in days
         for i in range(1,m):
-            t[i] *= math.cos(2*math.pi * i * dt/365.25)
+            t[i] *= math.cos(2*math.pi * i * dt/period)
 
         h = mactrick(m,t)
 

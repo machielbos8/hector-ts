@@ -49,6 +49,7 @@ def _noise_model_lines(noisemodels, phi):
     if re.search('GGM', noisemodels): combination += ' GGM'
     if re.search('WN',  noisemodels): combination += ' White'
     if re.search('VA',  noisemodels): combination += ' VaryingAnnual'
+    if re.search('VSA', noisemodels): combination += ' VaryingSemiAnnual'
     if re.search('AR1', noisemodels): combination += ' AR1'
     if re.search('MT',  noisemodels): combination += ' Matern'
     lines.append("NoiseModels         {0:s}\n".format(combination))

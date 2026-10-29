@@ -27,6 +27,7 @@ from hector.white import White
 from hector.ggm import GGM
 from hector.powerlaw import Powerlaw
 from hector.varyingannual import VaryingAnnual
+from hector.varyingsemiannual import VaryingSemiAnnual
 from hector.ar1 import AR1
 from hector.matern import Matern
 from hector.arfima import ARFIMA

@@ -27,6 +27,9 @@ from hector.observations import Observations
 
 class VaryingAnnual:
 
+    #--- Period of the seasonal signal in days (VaryingSemiAnnual: 182.625)
+    PERIOD = 365.25
+
     def __init__(self):
         """ initialise class
         """
@@ -47,10 +50,11 @@ class VaryingAnnual:
         except:
             ts_format = 'mom'
         if ts_format not in ('mom', 'ncf'):
-            print('VaryingAnnual requires mom or ncf format (MJD time axis).')
+            print('{0:s} requires mom or ncf format (MJD time axis).'.format(
+                                                     type(self).__name__))
             sys.exit(1)
 
-        self.omega0 = 2.0*math.pi/365.25
+        self.omega0 = 2.0*math.pi/self.PERIOD
         self.DeltaT = observations.sampling_period
 
 

@@ -429,6 +429,7 @@ def main():
             ('test_factorisation_failure', 'run_factorisation_failure_tests', 'factor-fail'),
             ('test_levinson', 'run_levinson_tests', 'levinson'),
             ('test_simulatenoise', 'run_simulatenoise_tests', 'simnoise'),
+            ('test_varying_seasonal', 'run_varying_seasonal_tests', 'varying'),
             ('test_input_errors', 'run_error_tests', 'errors')):
         try:
             mod = __import__(modname)

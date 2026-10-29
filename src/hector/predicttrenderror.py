@@ -28,6 +28,7 @@ from hector.white import White
 from hector.ggm import GGM
 from hector.powerlaw import Powerlaw
 from hector.varyingannual import VaryingAnnual
+from hector.varyingsemiannual import VaryingSemiAnnual
 from hector.ar1 import AR1
 from hector.arfima import ARFIMA
 from hector.ammargrag import AmmarGrag
@@ -131,6 +132,11 @@ def main():
     powerlaw     = Powerlaw()
     ggm          = GGM()
     varyingannual = VaryingAnnual()
+    varyingsemiannual = VaryingSemiAnnual()
+    #--- There is no data file, so Observations has no sampling period
+    #    (0.0, which made the cosine of the varying seasonal models 1)
+    varyingannual.DeltaT     = dt
+    varyingsemiannual.DeltaT = dt
     ar1          = AR1()
     arfima_obj   = None
     if arfima_p > 0 or arfima_q > 0:
@@ -169,10 +175,12 @@ def main():
             fraction  = nm_data['fraction']
             t_part, _ = ggm.create_t(m, 0, param)
 
-        elif noisemodel == 'VaryingAnnual':
+        elif noisemodel in ('VaryingAnnual', 'VaryingSemiAnnual'):
             param[0]  = nm_data['phi']
             fraction  = nm_data['fraction']
-            t_part, _ = varyingannual.create_t(m, 0, param)
+            model = varyingannual if noisemodel == 'VaryingAnnual' \
+                                  else varyingsemiannual
+            t_part, _ = model.create_t(m, 0, param)
 
         elif noisemodel == 'AR1':
             param[0]  = nm_data['phi']

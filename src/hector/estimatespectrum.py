@@ -24,6 +24,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from hector.control import Control
 from hector.observations import Observations
+from hector.varyingannual import VaryingAnnual
+from hector.varyingsemiannual import VaryingSemiAnnual
 from scipy import signal
 import argparse
 from pathlib import Path
@@ -93,23 +95,29 @@ def compute_G_AR1(f,phi):
 
 
 
-def compute_G_VA(f,fs,phi):
-    """ compute PSD for VaryingAnnual noise
+def compute_G_VA(f,fs,phi,period=365.25):
+    """ compute PSD for VaryingAnnual (or VaryingSemiAnnual) noise
+
+    The autocovariance phi^k cos(w0 k)/(2(1-phi^2)) is half an AR(1)
+    autocovariance times a cosine, so the spectrum is a quarter of the AR(1)
+    spectrum shifted to +w0 and to -w0.  One-sided: integrated from 0 to
+    fs/2 it gives the variance 1/(2(1-phi^2)).
 
     Args:
         f (float) : real frequency  (Hz)
         fs (float) : real sampling frequency (Hz)
         phi (float) : phi
+        period (float) : period of the seasonal signal (days)
 
     Returns:
         G, which is one sided PSD, at frequency f
     """
 
-    f0 = 1.0/(86400.0*365.25)
+    f0 = 1.0/(86400.0*period)
     tpi = 2*math.pi
 
-    return 2.0/math.pi * (1.0/(1-2*phi*math.cos(tpi*(f+f0)/fs)+phi*phi) + \
-                          1.0/(1-2*phi*math.cos(tpi*(f-f0)/fs)+phi*phi))
+    return 0.5 * (1.0/(1-2*phi*math.cos(tpi*(f+f0)/fs)+phi*phi) + \
+                  1.0/(1-2*phi*math.cos(tpi*(f-f0)/fs)+phi*phi))
 
 
 
@@ -265,11 +273,16 @@ def _model_psd_entries(noisemodels, T, fs):
             phi = p['phi']
             entries.append(('AR1',
                 lambda f,s2=s2,phi=phi: s2*compute_G_AR1(tpi*f/fs,phi)))
-        elif name=='VaryingAnnual':
+        elif name in ('VaryingAnnual','VaryingSemiAnnual'):
             s2 = math.pow(p['sigma'],2.0)/fs
             phi = p['phi']
-            entries.append(('VA',
-                lambda f,s2=s2,phi=phi: s2*compute_G_VA(f,fs,phi)))
+            if name=='VaryingAnnual':
+                label, period = 'VA', VaryingAnnual.PERIOD
+            else:
+                label, period = 'VSA', VaryingSemiAnnual.PERIOD
+            entries.append((label,
+                lambda f,s2=s2,phi=phi,period=period:
+                                    s2*compute_G_VA(f,fs,phi,period)))
         elif name=='Matern':
             d = -p['kappa']/2.0
             s2 = math.pow(p['sigma'],2.0)/fs
