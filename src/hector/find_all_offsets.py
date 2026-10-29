@@ -295,7 +295,7 @@ def _multivariate_forward_search(station, ncf_path, pre_dir,
 def main():
 
     print("\n*******************************************")
-    print("    find_all_offsets, version 3.2.0.")
+    print("    find_all_offsets, version 3.2.1.")
     print("*******************************************\n")
 
     parser = argparse.ArgumentParser(

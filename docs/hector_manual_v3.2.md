@@ -1,7 +1,7 @@
 ---
 tm-title: "Hector"
-tm-subtitle: "User Manual version 3.2.0"
-tm-runhead: "Hector v3.2.0 User Manual"
+tm-subtitle: "User Manual version 3.2.1"
+tm-runhead: "Hector v3.2.1 User Manual"
 tm-author: "Machiel S. Bos"
 tm-date: "2026"
 bibliography: references_manual.bib
@@ -734,7 +734,7 @@ The program `estimatetrend` shows the following on the screen:
 
 ```
 ***************************************
-    estimatetrend, version 3.2.0.
+    estimatetrend, version 3.2.1.
 ***************************************
 
 Filename                   : pre_files/TEST.mom
@@ -982,7 +982,7 @@ The output printed on the screen is:
 
 ```
 ***************************************
-    estimatespectrum, version 3.2.0.
+    estimatespectrum, version 3.2.1.
 ***************************************
 
 Filename                   : mom_files/TEST.mom

@@ -244,7 +244,7 @@ def main():
 
     if verbose==True:
         print("\n***************************************")
-        print("    removeoutliers, version 3.2.0.")
+        print("    removeoutliers, version 3.2.1.")
         print("***************************************")
 
     start_time = time.time()

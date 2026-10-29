@@ -124,7 +124,7 @@ def main():
 
     if verbose:
         print('\n***************************************')
-        print('    predicttrenderror, version 3.2.0.')
+        print('    predicttrenderror, version 3.2.1.')
         print('***************************************')
 
     #--- Instantiate noise model objects
