@@ -4226,4 +4226,5 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
    file sent by Janusz Bogusz.
 3. The paper scripts ship with the results of Hector 3.2.1 (comparison
    runs, gap-fraction sweep with single-threaded linear algebra, and the
-   single-core measurements).
+   single-core measurements), archived as version 1.3 at
+   https://doi.org/10.5281/zenodo.23833263.
