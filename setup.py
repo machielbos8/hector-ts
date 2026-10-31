@@ -146,6 +146,12 @@ def _build_ext_modules():
         ],
         language_level="3",
     )
+    #--- No module uses the NumPy C API from before 1.7; saying so silences
+    #    the "Using deprecated NumPy API" warning in every build (and makes
+    #    the build fail if old API calls ever creep in)
+    for ext in exts:
+        ext.define_macros.append(('NPY_NO_DEPRECATED_API',
+                                  'NPY_1_7_API_VERSION'))
     return exts
 
 
