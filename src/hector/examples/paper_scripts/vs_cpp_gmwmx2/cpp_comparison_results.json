@@ -60,7 +60,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.3615238750353456,
+        "hectorp_time": 1.392807874828577,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -108,11 +108,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 3.4,
+          "_cpp_internal_sec": 3.5,
           "_nfev": 119,
           "_threads": 8
         },
-        "cpp_time": 3.4312634579837322
+        "cpp_time": 3.5157616659998894
       },
       {
         "hectorp": {
@@ -170,7 +170,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.1195456245914102,
+        "hectorp_time": 1.128165166825056,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -218,11 +218,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 2.97,
+          "_cpp_internal_sec": 3.05,
           "_nfev": 103,
           "_threads": 8
         },
-        "cpp_time": 2.9742923751473427
+        "cpp_time": 3.0539513742551208
       },
       {
         "hectorp": {
@@ -280,7 +280,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.1206927923485637,
+        "hectorp_time": 1.137441124767065,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -328,11 +328,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 3.47,
+          "_cpp_internal_sec": 3.52,
           "_nfev": 121,
           "_threads": 8
         },
-        "cpp_time": 3.473009833134711
+        "cpp_time": 3.5234819166362286
       },
       {
         "hectorp": {
@@ -390,7 +390,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.1351193757727742,
+        "hectorp_time": 1.1321644587442279,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -438,11 +438,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 2.92,
+          "_cpp_internal_sec": 3.01,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 2.9264720417559147
+        "cpp_time": 3.0199150005355477
       },
       {
         "hectorp": {
@@ -500,7 +500,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.1242451658472419,
+        "hectorp_time": 1.1334464997053146,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -548,11 +548,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 2.93,
+          "_cpp_internal_sec": 2.98,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 2.9338531671091914
+        "cpp_time": 2.9822262916713953
       },
       {
         "hectorp": {
@@ -610,7 +610,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.1317676668986678,
+        "hectorp_time": 1.1332672499120235,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -658,11 +658,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 2.96,
+          "_cpp_internal_sec": 3.05,
           "_nfev": 103,
           "_threads": 8
         },
-        "cpp_time": 2.97041929140687
+        "cpp_time": 3.0577804995700717
       },
       {
         "hectorp": {
@@ -720,7 +720,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.1469749575480819,
+        "hectorp_time": 1.1364645007997751,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -768,11 +768,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 2.92,
+          "_cpp_internal_sec": 2.96,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 2.928432791493833
+        "cpp_time": 2.96927404217422
       },
       {
         "hectorp": {
@@ -830,7 +830,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.149045749567449,
+        "hectorp_time": 1.1689109997823834,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -878,11 +878,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 3.49,
+          "_cpp_internal_sec": 3.54,
           "_nfev": 123,
           "_threads": 8
         },
-        "cpp_time": 3.4989974992349744
+        "cpp_time": 3.5487670823931694
       },
       {
         "hectorp": {
@@ -940,7 +940,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.1292174579575658,
+        "hectorp_time": 1.1238616677001119,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -988,11 +988,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 3.4,
+          "_cpp_internal_sec": 3.44,
           "_nfev": 120,
           "_threads": 8
         },
-        "cpp_time": 3.404353708960116
+        "cpp_time": 3.450564165599644
       },
       {
         "hectorp": {
@@ -1050,7 +1050,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.1667840406298637,
+        "hectorp_time": 1.196274334564805,
         "cpp": {
           "N": 3652,
           "gap_percentage": 0,
@@ -1098,11 +1098,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 2.88,
+          "_cpp_internal_sec": 2.95,
           "_nfev": 100,
           "_threads": 8
         },
-        "cpp_time": 2.881868333555758
+        "cpp_time": 2.9531399169936776
       }
     ]
   },
@@ -1167,7 +1167,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.6677823336794972,
+        "hectorp_time": 1.4512360822409391,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -1215,11 +1215,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 4.45,
+          "_cpp_internal_sec": 4.48,
           "_nfev": 100,
           "_threads": 8
         },
-        "cpp_time": 4.455122250132263
+        "cpp_time": 4.485536124557257
       },
       {
         "hectorp": {
@@ -1277,7 +1277,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.7137545002624393,
+        "hectorp_time": 1.4522463344037533,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -1325,11 +1325,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 4.31,
+          "_cpp_internal_sec": 4.33,
           "_nfev": 96,
           "_threads": 8
         },
-        "cpp_time": 4.316400332376361
+        "cpp_time": 4.333719541318715
       },
       {
         "hectorp": {
@@ -1387,7 +1387,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.6591690424829721,
+        "hectorp_time": 1.4496120000258088,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -1435,11 +1435,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 4.54,
+          "_cpp_internal_sec": 4.84,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 4.54938062466681
+        "cpp_time": 4.847667708992958
       },
       {
         "hectorp": {
@@ -1497,7 +1497,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.687268791720271,
+        "hectorp_time": 1.5469372905790806,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -1545,11 +1545,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 4.34,
+          "_cpp_internal_sec": 4.41,
           "_nfev": 97,
           "_threads": 8
         },
-        "cpp_time": 4.35126837529242
+        "cpp_time": 4.419768833555281
       },
       {
         "hectorp": {
@@ -1607,7 +1607,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.6451992085203528,
+        "hectorp_time": 1.4246730841696262,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -1655,11 +1655,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 4.53,
+          "_cpp_internal_sec": 4.57,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 4.531990459188819
+        "cpp_time": 4.581038375385106
       },
       {
         "hectorp": {
@@ -1717,7 +1717,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.6844992078840733,
+        "hectorp_time": 1.440391750074923,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -1765,11 +1765,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 4.58,
+          "_cpp_internal_sec": 4.61,
           "_nfev": 103,
           "_threads": 8
         },
-        "cpp_time": 4.586445749737322
+        "cpp_time": 4.6140381675213575
       },
       {
         "hectorp": {
@@ -1827,7 +1827,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.6499103754758835,
+        "hectorp_time": 1.4730354165658355,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -1875,11 +1875,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 5.25,
+          "_cpp_internal_sec": 5.29,
           "_nfev": 120,
           "_threads": 8
         },
-        "cpp_time": 5.256081459112465
+        "cpp_time": 5.2980665834620595
       },
       {
         "hectorp": {
@@ -1937,7 +1937,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.728590083308518,
+        "hectorp_time": 1.4844700414687395,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -1985,11 +1985,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 4.53,
+          "_cpp_internal_sec": 4.58,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 4.533352291211486
+        "cpp_time": 4.58270216640085
       },
       {
         "hectorp": {
@@ -2047,7 +2047,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.592113457620144,
+        "hectorp_time": 1.385438583791256,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -2095,11 +2095,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 4.49,
+          "_cpp_internal_sec": 4.53,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 4.499316583387554
+        "cpp_time": 4.537176291458309
       },
       {
         "hectorp": {
@@ -2157,7 +2157,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.7342326249927282,
+        "hectorp_time": 1.4954043347388506,
         "cpp": {
           "N": 3652,
           "gap_percentage": 9.99452,
@@ -2209,7 +2209,7 @@
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 4.502681124955416
+        "cpp_time": 4.5083643747493625
       }
     ]
   },
@@ -2274,7 +2274,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.5147703336551785,
+        "hectorp_time": 1.512100875377655,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -2322,11 +2322,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 7.7,
+          "_cpp_internal_sec": 7.73,
           "_nfev": 119,
           "_threads": 8
         },
-        "cpp_time": 7.709156916476786
+        "cpp_time": 7.732346958480775
       },
       {
         "hectorp": {
@@ -2384,7 +2384,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.5864391662180424,
+        "hectorp_time": 1.5728551652282476,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -2436,7 +2436,7 @@
           "_nfev": 116,
           "_threads": 8
         },
-        "cpp_time": 7.5076269172132015
+        "cpp_time": 7.506770124658942
       },
       {
         "hectorp": {
@@ -2494,7 +2494,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.5552373342216015,
+        "hectorp_time": 1.5261763334274292,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -2542,11 +2542,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 7.83,
+          "_cpp_internal_sec": 7.8,
           "_nfev": 122,
           "_threads": 8
         },
-        "cpp_time": 7.834830541163683
+        "cpp_time": 7.8105763755738735
       },
       {
         "hectorp": {
@@ -2604,7 +2604,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.532807999290526,
+        "hectorp_time": 1.5181631669402122,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -2652,11 +2652,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 6.67,
+          "_cpp_internal_sec": 6.61,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 6.678329000249505
+        "cpp_time": 6.614462249912322
       },
       {
         "hectorp": {
@@ -2714,7 +2714,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.5491170827299356,
+        "hectorp_time": 1.5467882500961423,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -2762,11 +2762,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 6.68,
+          "_cpp_internal_sec": 6.69,
           "_nfev": 103,
           "_threads": 8
         },
-        "cpp_time": 6.688983917236328
+        "cpp_time": 6.691092832945287
       },
       {
         "hectorp": {
@@ -2824,7 +2824,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.4991037920117378,
+        "hectorp_time": 1.5011196667328477,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -2872,11 +2872,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 6.61,
+          "_cpp_internal_sec": 6.58,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 6.615424834191799
+        "cpp_time": 6.581416041590273
       },
       {
         "hectorp": {
@@ -2934,7 +2934,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.5641807923093438,
+        "hectorp_time": 1.574846708215773,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -2982,11 +2982,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 7.4,
+          "_cpp_internal_sec": 7.42,
           "_nfev": 116,
           "_threads": 8
         },
-        "cpp_time": 7.410405416972935
+        "cpp_time": 7.423257250338793
       },
       {
         "hectorp": {
@@ -3044,7 +3044,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.548797749914229,
+        "hectorp_time": 1.555667500011623,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -3092,11 +3092,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 6.41,
+          "_cpp_internal_sec": 6.37,
           "_nfev": 99,
           "_threads": 8
         },
-        "cpp_time": 6.411988125182688
+        "cpp_time": 6.379275416024029
       },
       {
         "hectorp": {
@@ -3154,7 +3154,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.51933216676116,
+        "hectorp_time": 1.5195930413901806,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -3202,11 +3202,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 6.52,
+          "_cpp_internal_sec": 6.42,
           "_nfev": 100,
           "_threads": 8
         },
-        "cpp_time": 6.5286680003628135
+        "cpp_time": 6.425724666565657
       },
       {
         "hectorp": {
@@ -3264,7 +3264,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 1.5325159998610616,
+        "hectorp_time": 1.5263550840318203,
         "cpp": {
           "N": 7305,
           "gap_percentage": 0,
@@ -3312,11 +3312,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 6.6,
+          "_cpp_internal_sec": 6.54,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 6.604025749489665
+        "cpp_time": 6.543025249615312
       }
     ]
   },
@@ -3381,7 +3381,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 3.7430537082254887,
+        "hectorp_time": 2.801090999506414,
         "cpp": {
           "N": 7305,
           "gap_percentage": 9.99316,
@@ -3429,11 +3429,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 16.36,
+          "_cpp_internal_sec": 16.26,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 16.371220665983856
+        "cpp_time": 16.27033754158765
       },
       {
         "hectorp": {
@@ -3491,7 +3491,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 3.6600852496922016,
+        "hectorp_time": 2.7495600832626224,
         "cpp": {
           "N": 7305,
           "gap_percentage": 9.99316,
@@ -3539,11 +3539,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 18.96,
+          "_cpp_internal_sec": 18.93,
           "_nfev": 119,
           "_threads": 8
         },
-        "cpp_time": 18.964814333245158
+        "cpp_time": 18.935343000106514
       },
       {
         "hectorp": {
@@ -3601,7 +3601,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 3.6639597909525037,
+        "hectorp_time": 2.763172292150557,
         "cpp": {
           "N": 7305,
           "gap_percentage": 9.99316,
@@ -3653,7 +3653,7 @@
           "_nfev": 123,
           "_threads": 8
         },
-        "cpp_time": 19.498043667525053
+        "cpp_time": 19.501051084138453
       },
       {
         "hectorp": {
@@ -3711,7 +3711,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 4.084865666925907,
+        "hectorp_time": 3.0442167911678553,
         "cpp": {
           "N": 7305,
           "gap_percentage": 9.99316,
@@ -3763,7 +3763,7 @@
           "_nfev": 100,
           "_threads": 8
         },
-        "cpp_time": 16.171135709621012
+        "cpp_time": 16.1667318334803
       },
       {
         "hectorp": {
@@ -3821,7 +3821,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 4.29338283278048,
+        "hectorp_time": 3.13535429071635,
         "cpp": {
           "N": 7304,
           "gap_percentage": 9.98083,
@@ -3869,11 +3869,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 16.37,
+          "_cpp_internal_sec": 16.36,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 16.382324582897127
+        "cpp_time": 16.36633091699332
       },
       {
         "hectorp": {
@@ -3931,7 +3931,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 3.701261917129159,
+        "hectorp_time": 2.744695500470698,
         "cpp": {
           "N": 7304,
           "gap_percentage": 9.98083,
@@ -3979,11 +3979,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 16.4,
+          "_cpp_internal_sec": 16.39,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 16.402616958133876
+        "cpp_time": 16.396764959208667
       },
       {
         "hectorp": {
@@ -4041,7 +4041,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 3.719920584000647,
+        "hectorp_time": 2.812578583136201,
         "cpp": {
           "N": 7305,
           "gap_percentage": 9.99316,
@@ -4089,11 +4089,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 18.62,
+          "_cpp_internal_sec": 18.61,
           "_nfev": 117,
           "_threads": 8
         },
-        "cpp_time": 18.623852416872978
+        "cpp_time": 18.619143541902304
       },
       {
         "hectorp": {
@@ -4151,7 +4151,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 3.5819045417010784,
+        "hectorp_time": 2.7111836662516,
         "cpp": {
           "N": 7305,
           "gap_percentage": 9.99316,
@@ -4199,11 +4199,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 16.14,
+          "_cpp_internal_sec": 16.17,
           "_nfev": 100,
           "_threads": 8
         },
-        "cpp_time": 16.14954954199493
+        "cpp_time": 16.179426500573754
       },
       {
         "hectorp": {
@@ -4261,7 +4261,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 3.6458104588091373,
+        "hectorp_time": 2.8107170835137367,
         "cpp": {
           "N": 7303,
           "gap_percentage": 9.96851,
@@ -4309,11 +4309,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 16.31,
+          "_cpp_internal_sec": 16.59,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 16.314055416733027
+        "cpp_time": 16.594791333191097
       },
       {
         "hectorp": {
@@ -4371,7 +4371,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 3.710912249982357,
+        "hectorp_time": 2.7620903328061104,
         "cpp": {
           "N": 7305,
           "gap_percentage": 9.99316,
@@ -4419,11 +4419,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 16.45,
+          "_cpp_internal_sec": 16.72,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 16.455867582932115
+        "cpp_time": 16.734392291866243
       }
     ]
   },
@@ -4488,7 +4488,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.2506273752078414,
+        "hectorp_time": 2.4870800841599703,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -4536,11 +4536,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 25.17,
+          "_cpp_internal_sec": 25.37,
           "_nfev": 119,
           "_threads": 8
         },
-        "cpp_time": 25.178729332983494
+        "cpp_time": 25.37694179173559
       },
       {
         "hectorp": {
@@ -4598,7 +4598,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.387111541815102,
+        "hectorp_time": 2.6434469586238265,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -4646,11 +4646,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 21.97,
+          "_cpp_internal_sec": 21.69,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 21.972807332873344
+        "cpp_time": 21.694489415735006
       },
       {
         "hectorp": {
@@ -4708,7 +4708,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.2322087921202183,
+        "hectorp_time": 2.2085873326286674,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -4756,11 +4756,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 25.51,
+          "_cpp_internal_sec": 23.61,
           "_nfev": 120,
           "_threads": 8
         },
-        "cpp_time": 25.520491249859333
+        "cpp_time": 23.61850808467716
       },
       {
         "hectorp": {
@@ -4818,7 +4818,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.312382332980633,
+        "hectorp_time": 2.467757999897003,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -4866,11 +4866,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 25.13,
+          "_cpp_internal_sec": 22.3,
           "_nfev": 118,
           "_threads": 8
         },
-        "cpp_time": 25.141154290176928
+        "cpp_time": 22.304639333859086
       },
       {
         "hectorp": {
@@ -4928,7 +4928,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.313483875244856,
+        "hectorp_time": 2.7425345834344625,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -4976,11 +4976,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 25.04,
+          "_cpp_internal_sec": 22.77,
           "_nfev": 118,
           "_threads": 8
         },
-        "cpp_time": 25.047189665958285
+        "cpp_time": 22.77234812453389
       },
       {
         "hectorp": {
@@ -5038,7 +5038,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.335380334407091,
+        "hectorp_time": 2.629687499254942,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -5086,11 +5086,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 25.19,
+          "_cpp_internal_sec": 23.74,
           "_nfev": 119,
           "_threads": 8
         },
-        "cpp_time": 25.197709708474576
+        "cpp_time": 23.746808791533113
       },
       {
         "hectorp": {
@@ -5148,7 +5148,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.2917636670172215,
+        "hectorp_time": 2.500403417274356,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -5196,11 +5196,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 24.88,
+          "_cpp_internal_sec": 23.84,
           "_nfev": 117,
           "_threads": 8
         },
-        "cpp_time": 24.8845073338598
+        "cpp_time": 23.84304695762694
       },
       {
         "hectorp": {
@@ -5258,7 +5258,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.2393069583922625,
+        "hectorp_time": 2.7348794993013144,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -5306,11 +5306,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 21.64,
+          "_cpp_internal_sec": 20.29,
           "_nfev": 100,
           "_threads": 8
         },
-        "cpp_time": 21.645066833123565
+        "cpp_time": 20.29344283323735
       },
       {
         "hectorp": {
@@ -5368,7 +5368,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.2495639994740486,
+        "hectorp_time": 2.396227124147117,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -5416,11 +5416,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 21.94,
+          "_cpp_internal_sec": 20.73,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 21.946499208919704
+        "cpp_time": 20.744369582273066
       },
       {
         "hectorp": {
@@ -5478,7 +5478,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.259349999949336,
+        "hectorp_time": 2.4018317498266697,
         "cpp": {
           "N": 10958,
           "gap_percentage": 0,
@@ -5526,11 +5526,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 25.72,
+          "_cpp_internal_sec": 24.54,
           "_nfev": 122,
           "_threads": 8
         },
-        "cpp_time": 25.725268833339214
+        "cpp_time": 24.542103833518922
       }
     ]
   },
@@ -5595,7 +5595,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 9.434068624861538,
+        "hectorp_time": 6.13865162525326,
         "cpp": {
           "N": 10958,
           "gap_percentage": 10.0018,
@@ -5643,11 +5643,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 58.89,
+          "_cpp_internal_sec": 59.01,
           "_nfev": 117,
           "_threads": 8
         },
-        "cpp_time": 58.897253583185375
+        "cpp_time": 59.024254749529064
       },
       {
         "hectorp": {
@@ -5705,7 +5705,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 8.793642750009894,
+        "hectorp_time": 5.91669808421284,
         "cpp": {
           "N": 10958,
           "gap_percentage": 10.0018,
@@ -5753,11 +5753,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 61.37,
+          "_cpp_internal_sec": 61.22,
           "_nfev": 122,
           "_threads": 8
         },
-        "cpp_time": 61.377434625290334
+        "cpp_time": 61.22801783308387
       },
       {
         "hectorp": {
@@ -5815,7 +5815,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 8.282263750210404,
+        "hectorp_time": 5.59460295829922,
         "cpp": {
           "N": 10958,
           "gap_percentage": 10.0018,
@@ -5863,11 +5863,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 52.13,
+          "_cpp_internal_sec": 52.38,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 52.14168354216963
+        "cpp_time": 52.391324458643794
       },
       {
         "hectorp": {
@@ -5925,7 +5925,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 8.37168504204601,
+        "hectorp_time": 5.55245366692543,
         "cpp": {
           "N": 10958,
           "gap_percentage": 10.0018,
@@ -5973,11 +5973,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 52.2,
+          "_cpp_internal_sec": 52.51,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 52.208467584103346
+        "cpp_time": 52.52193100005388
       },
       {
         "hectorp": {
@@ -6035,7 +6035,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 8.551840375177562,
+        "hectorp_time": 5.807920209132135,
         "cpp": {
           "N": 10958,
           "gap_percentage": 10.0018,
@@ -6083,11 +6083,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 60.12,
+          "_cpp_internal_sec": 60.41,
           "_nfev": 119,
           "_threads": 8
         },
-        "cpp_time": 60.1309249997139
+        "cpp_time": 60.41887545771897
       },
       {
         "hectorp": {
@@ -6145,7 +6145,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 8.496159582398832,
+        "hectorp_time": 5.747362667694688,
         "cpp": {
           "N": 10955,
           "gap_percentage": 9.97718,
@@ -6193,11 +6193,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 60.95,
+          "_cpp_internal_sec": 61.32,
           "_nfev": 121,
           "_threads": 8
         },
-        "cpp_time": 60.9606880415231
+        "cpp_time": 61.331384709104896
       },
       {
         "hectorp": {
@@ -6255,7 +6255,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 9.436512917280197,
+        "hectorp_time": 6.365116749890149,
         "cpp": {
           "N": 10958,
           "gap_percentage": 10.0018,
@@ -6303,11 +6303,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 61.03,
+          "_cpp_internal_sec": 60.64,
           "_nfev": 121,
           "_threads": 8
         },
-        "cpp_time": 61.04031662456691
+        "cpp_time": 60.64912729058415
       },
       {
         "hectorp": {
@@ -6365,7 +6365,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 9.11189516633749,
+        "hectorp_time": 6.037531457841396,
         "cpp": {
           "N": 10957,
           "gap_percentage": 9.99361,
@@ -6413,11 +6413,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 53.24,
+          "_cpp_internal_sec": 52.59,
           "_nfev": 102,
           "_threads": 8
         },
-        "cpp_time": 53.255599999800324
+        "cpp_time": 52.60733929183334
       },
       {
         "hectorp": {
@@ -6475,7 +6475,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 8.945051957853138,
+        "hectorp_time": 5.965253416448832,
         "cpp": {
           "N": 10956,
           "gap_percentage": 9.9854,
@@ -6523,11 +6523,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 61.87,
+          "_cpp_internal_sec": 62.36,
           "_nfev": 123,
           "_threads": 8
         },
-        "cpp_time": 61.87897500023246
+        "cpp_time": 62.370697332546115
       },
       {
         "hectorp": {
@@ -6585,7 +6585,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 9.075549208559096,
+        "hectorp_time": 6.111334208399057,
         "cpp": {
           "N": 10958,
           "gap_percentage": 10.0018,
@@ -6633,11 +6633,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 60.29,
+          "_cpp_internal_sec": 60.4,
           "_nfev": 119,
           "_threads": 8
         },
-        "cpp_time": 60.29716995917261
+        "cpp_time": 60.410226500593126
       }
     ]
   },
@@ -6702,7 +6702,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.4873299580067396,
+        "hectorp_time": 2.8313883747905493,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -6750,11 +6750,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 62.52,
+          "_cpp_internal_sec": 64.52,
           "_nfev": 103,
           "_threads": 8
         },
-        "cpp_time": 62.52494854107499
+        "cpp_time": 64.52172149997205
       },
       {
         "hectorp": {
@@ -6812,7 +6812,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.3937821248546243,
+        "hectorp_time": 2.8329238342121243,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -6860,11 +6860,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 71.45,
+          "_cpp_internal_sec": 67.44,
           "_nfev": 123,
           "_threads": 8
         },
-        "cpp_time": 71.46102099958807
+        "cpp_time": 67.4511204995215
       },
       {
         "hectorp": {
@@ -6922,7 +6922,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.5710398331284523,
+        "hectorp_time": 2.960433207452297,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -6970,11 +6970,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 70.58,
+          "_cpp_internal_sec": 76.06,
           "_nfev": 122,
           "_threads": 8
         },
-        "cpp_time": 70.58987712487578
+        "cpp_time": 76.06790595781058
       },
       {
         "hectorp": {
@@ -7032,7 +7032,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.5183514580130577,
+        "hectorp_time": 2.8981889998540282,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -7080,11 +7080,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 59.05,
+          "_cpp_internal_sec": 64.63,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 59.052497250027955
+        "cpp_time": 64.63944891747087
       },
       {
         "hectorp": {
@@ -7142,7 +7142,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.412447082810104,
+        "hectorp_time": 2.5158644998446107,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -7190,11 +7190,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 69.01,
+          "_cpp_internal_sec": 75.37,
           "_nfev": 120,
           "_threads": 8
         },
-        "cpp_time": 69.01678183302283
+        "cpp_time": 75.38231324963272
       },
       {
         "hectorp": {
@@ -7252,7 +7252,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.4284478751942515,
+        "hectorp_time": 2.8592171669006348,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -7300,11 +7300,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 56.31,
+          "_cpp_internal_sec": 57.11,
           "_nfev": 96,
           "_threads": 8
         },
-        "cpp_time": 56.316337457858026
+        "cpp_time": 57.119593541137874
       },
       {
         "hectorp": {
@@ -7362,7 +7362,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.55526770837605,
+        "hectorp_time": 2.9894387079402804,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -7410,11 +7410,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 69.13,
+          "_cpp_internal_sec": 65.9,
           "_nfev": 120,
           "_threads": 8
         },
-        "cpp_time": 69.14109670743346
+        "cpp_time": 65.9055881248787
       },
       {
         "hectorp": {
@@ -7472,7 +7472,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.4501235829666257,
+        "hectorp_time": 2.8859729999676347,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -7520,11 +7520,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 58.95,
+          "_cpp_internal_sec": 65.49,
           "_nfev": 103,
           "_threads": 8
         },
-        "cpp_time": 58.95535787474364
+        "cpp_time": 65.50153545849025
       },
       {
         "hectorp": {
@@ -7582,7 +7582,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.5542528750374913,
+        "hectorp_time": 2.8814311251044273,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -7630,11 +7630,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 73.19,
+          "_cpp_internal_sec": 75.67,
           "_nfev": 121,
           "_threads": 8
         },
-        "cpp_time": 73.20227800030261
+        "cpp_time": 75.677230540663
       },
       {
         "hectorp": {
@@ -7692,7 +7692,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 2.5099999578669667,
+        "hectorp_time": 2.948513208888471,
         "cpp": {
           "N": 14610,
           "gap_percentage": 0,
@@ -7740,11 +7740,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 73.6,
+          "_cpp_internal_sec": 70.95,
           "_nfev": 120,
           "_threads": 8
         },
-        "cpp_time": 73.60672933422029
+        "cpp_time": 70.96134558320045
       }
     ]
   },
@@ -7809,7 +7809,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 13.66260270960629,
+        "hectorp_time": 8.555928457528353,
         "cpp": {
           "N": 14609,
           "gap_percentage": 9.99384,
@@ -7857,11 +7857,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 154.41,
+          "_cpp_internal_sec": 152.38,
           "_nfev": 121,
           "_threads": 8
         },
-        "cpp_time": 154.4194295424968
+        "cpp_time": 152.39607587549835
       },
       {
         "hectorp": {
@@ -7919,7 +7919,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 16.573558417148888,
+        "hectorp_time": 9.782244000583887,
         "cpp": {
           "N": 14610,
           "gap_percentage": 10,
@@ -7967,11 +7967,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 129.6,
+          "_cpp_internal_sec": 132.31,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 129.61785641685128
+        "cpp_time": 132.32327412534505
       },
       {
         "hectorp": {
@@ -8029,7 +8029,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 14.022542082704604,
+        "hectorp_time": 8.446898416616023,
         "cpp": {
           "N": 14610,
           "gap_percentage": 10,
@@ -8077,11 +8077,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 157.43,
+          "_cpp_internal_sec": 154.94,
           "_nfev": 122,
           "_threads": 8
         },
-        "cpp_time": 157.43707712553442
+        "cpp_time": 154.94966695830226
       },
       {
         "hectorp": {
@@ -8139,7 +8139,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 16.072854917496443,
+        "hectorp_time": 9.688266541808844,
         "cpp": {
           "N": 14609,
           "gap_percentage": 9.99384,
@@ -8187,11 +8187,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 154.75,
+          "_cpp_internal_sec": 152.92,
           "_nfev": 120,
           "_threads": 8
         },
-        "cpp_time": 154.76440654229373
+        "cpp_time": 152.9401083746925
       },
       {
         "hectorp": {
@@ -8249,7 +8249,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 14.389810833148658,
+        "hectorp_time": 8.83201187569648,
         "cpp": {
           "N": 14610,
           "gap_percentage": 10,
@@ -8297,11 +8297,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 152.47,
+          "_cpp_internal_sec": 151.46,
           "_nfev": 119,
           "_threads": 8
         },
-        "cpp_time": 152.4878496248275
+        "cpp_time": 151.47581524960697
       },
       {
         "hectorp": {
@@ -8359,7 +8359,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 14.146976791322231,
+        "hectorp_time": 8.755935833789408,
         "cpp": {
           "N": 14610,
           "gap_percentage": 10,
@@ -8407,11 +8407,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 131.49,
+          "_cpp_internal_sec": 133.58,
           "_nfev": 103,
           "_threads": 8
         },
-        "cpp_time": 131.50601849984378
+        "cpp_time": 133.59576562512666
       },
       {
         "hectorp": {
@@ -8469,7 +8469,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 15.687506332993507,
+        "hectorp_time": 9.67747945804149,
         "cpp": {
           "N": 14609,
           "gap_percentage": 9.99384,
@@ -8517,11 +8517,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 162.61,
+          "_cpp_internal_sec": 163.11,
           "_nfev": 130,
           "_threads": 8
         },
-        "cpp_time": 162.62153645884246
+        "cpp_time": 163.1236707083881
       },
       {
         "hectorp": {
@@ -8579,7 +8579,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 15.050533125177026,
+        "hectorp_time": 9.048466167412698,
         "cpp": {
           "N": 14610,
           "gap_percentage": 10,
@@ -8627,11 +8627,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 129.51,
+          "_cpp_internal_sec": 131.65,
           "_nfev": 101,
           "_threads": 8
         },
-        "cpp_time": 129.52886333409697
+        "cpp_time": 131.65789787564427
       },
       {
         "hectorp": {
@@ -8689,7 +8689,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 15.684164541773498,
+        "hectorp_time": 9.114444750361145,
         "cpp": {
           "N": 14610,
           "gap_percentage": 10,
@@ -8737,11 +8737,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 155.41,
+          "_cpp_internal_sec": 155.74,
           "_nfev": 123,
           "_threads": 8
         },
-        "cpp_time": 155.42040695808828
+        "cpp_time": 155.74823299981654
       },
       {
         "hectorp": {
@@ -8799,7 +8799,7 @@
           "jump_sizes": [],
           "jump_sigmas": []
         },
-        "hectorp_time": 13.720606042072177,
+        "hectorp_time": 8.33554887585342,
         "cpp": {
           "N": 14610,
           "gap_percentage": 10,
@@ -8847,11 +8847,11 @@
           "jumps_epochs": [],
           "jumps_sizes": [],
           "jumps_sigmas": [],
-          "_cpp_internal_sec": 155.41,
+          "_cpp_internal_sec": 155.54,
           "_nfev": 123,
           "_threads": 8
         },
-        "cpp_time": 155.4185240417719
+        "cpp_time": 155.55180566664785
       }
     ]
   }

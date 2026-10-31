@@ -19,10 +19,12 @@ memory are read per run from the operating system (os.wait4).
     python3 run_single_core.py              # measure, write single_core_results.json
     python3 run_single_core.py --summary    # print the shipped results
 
-Shipped (2026-10-24, hector-ts 3.2.0 installed from PyPI in a clean
-environment, default options):
+Shipped (hector-ts 3.2.1, default options):
   single_core_results.json        Apple M4, 4 performance + 6 efficiency cores
+                                  (2026-10-29, the 3.2.1 release tree)
   single_core_results_cupra.json  AMD Ryzen 9 8945HS, 8 cores, Linux
+                                  (2026-10-31, installed from PyPI in a clean
+                                  environment)
 
 Timings depend on the machine and on the NumPy build; measure on an
 otherwise idle machine.

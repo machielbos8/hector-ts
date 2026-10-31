@@ -84,7 +84,7 @@ def main():
     leg = ax1.legend(loc="upper right", fontsize=7, frameon=False,
                      title="series length", title_fontsize=7, ncols=2)
     # method key as text (style, not colour)
-    ax1.set_ylim(top=6e3)
+    ax1.set_ylim(top=1e5)
     ax1.text(0.02, 0.97, "solid, filled: fast path\n"
                          "dashed, open: dense reference\n"
                          "crosses: clustered gaps",
