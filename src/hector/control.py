@@ -50,6 +50,34 @@ class SingletonMeta(type):
 
 
 
+#--- Hector 2.2 keywords that Hector 3 no longer reads.  None means: warn
+#    whenever the keyword is present; True: only when it is switched on (with
+#    'no' it did nothing in 2.2 either).  varyingseasonal_N, SignalFile and
+#    component only mattered together with a switch or another file format.
+_GENERIC = 'a Hector 2.2 option that Hector 3 does not have'
+OBSOLETE_KEYWORDS = {
+    'estimatevaryingseasonal': (True, 'the time-varying seasonal signal of '
+        'Hector 2.2 is not available; the VaryingAnnual and '
+        'VaryingSemiAnnual noise models describe a varying seasonal '
+        'signal instead'),
+    'subtractsignal': (True, 'subtract the signal from the observations '
+        'before the analysis'),
+    'interpolate': (True, 'missing data are not interpolated but left '
+        'out of the likelihood'),
+    'WindowFunction': (None, 'estimatespectrum always uses a Tukey window '
+        '(see the keyword Fraction)'),
+    'OffsetFile': (None, 'give the offsets in the data file (# offset '
+        'lines in a .mom file)'),
+    'Kashyap': (None, _GENERIC),
+    'BIC_c_ExtraPenalty': (None, _GENERIC),
+    'beta_size': (None, _GENERIC),
+    'beta_spacing': (None, _GENERIC),
+    'MonteCarloConfidence': (None, _GENERIC),
+    'TrueParams': (None, _GENERIC),
+}
+
+
+
 class Control(metaclass=SingletonMeta):
     """Class to store parameters that prescribe how the analysis should be done
     """
@@ -106,6 +134,14 @@ class Control(metaclass=SingletonMeta):
                                 self.params[label] = cols[1]
                             else:
                                 self.params[label] = cols[1:]
+
+        #--- Obsolete keywords are ignored, but say so: in 2.2 they changed
+        #    the result, and a user with an old control file would not know
+        for label, (when, hint) in OBSOLETE_KEYWORDS.items():
+            if label in self.params and \
+                         (when is None or self.params[label]==when):
+                print("Warning: keyword '{0:s}' in '{1:s}' is ignored: {2:s}.".\
+                      format(label, ctl_file, hint), file=sys.stderr)
 
 
     def get_required(self, key, hint=''):

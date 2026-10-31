@@ -9,6 +9,10 @@ crucially, WITHOUT a Python traceback. That last check is the real guard: it
 catches regressions where a malformed input crashes opaquely instead of telling
 the user what is wrong.
 
+A second, smaller set checks the warnings for Hector 2.2 keywords that Hector 3
+ignores: they must be reported when they would have changed the result in 2.2
+(e.g. ``estimatevaryingseasonal yes``), and stay silent when switched off.
+
 Run standalone:
     python3 tests/test_input_errors.py
 It is also invoked by ``run_examples.py`` as its final 'error-handling' section.
@@ -76,6 +80,24 @@ CASES = [
      GOOD_CTL.replace("DataFile        data.mom\n",
                       "DataFile        does_not_exist.mom\n"), GOOD_MOM,
      "does not exist"),
+    ("periods too close to separate in a short series",
+     GOOD_CTL + "periodicsignals 365.25 182.625 351.6 175.8\n", GOOD_MOM,
+     "365.25 and 351.6 drift apart"),
+    ("the same period given twice",
+     GOOD_CTL + "periodicsignals 10 10\n", GOOD_MOM,
+     "period 10 is included twice"),
+]
+
+# (description, extra ctl lines, expected warning fragment or None = silent)
+WARN_CASES = [
+    ("estimatevaryingseasonal yes is reported",
+     "estimatevaryingseasonal yes\nvaryingseasonal_N 3\n",
+     "'estimatevaryingseasonal' in 'run.ctl' is ignored"),
+    ("WindowFunction is reported",
+     "WindowFunction Parzen\n", "'WindowFunction' in 'run.ctl' is ignored"),
+    ("switched-off 2.2 keywords stay silent",
+     "estimatevaryingseasonal no\nvaryingseasonal_N 6\ninterpolate no\n"
+     "component Up\n", None),
 ]
 
 
@@ -134,6 +156,19 @@ def run_error_tests(verbose=True):
                 if not no_trace:
                     why.append("Python traceback present")
                 print("             -> " + "; ".join(why))
+
+    #--- Warnings: the run must still succeed (exit 0, no traceback)
+    for desc, extra, fragment in WARN_CASES:
+        code, out = _run_case(GOOD_CTL + extra, GOOD_MOM)
+        warned = "Warning: keyword" in out
+        ok = (code == 0 and "Traceback (most recent call last)" not in out
+              and (fragment.lower() in out.lower() if fragment else not warned))
+        all_ok = all_ok and ok
+        if verbose:
+            print("    {0} {1}".format("[  OK  ]" if ok else "[ FAIL ]", desc))
+            if not ok:
+                print("             -> exit code {0}, warning printed: {1}".
+                      format(code, warned))
     return all_ok
 
 

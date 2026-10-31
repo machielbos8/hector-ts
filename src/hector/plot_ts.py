@@ -170,7 +170,7 @@ def read_text(fname, cx, cy, cy2=None, cy3=None):
 def main():
 
     print("\n**********************************")
-    print("    plot_ts, version 3.2.1.")
+    print("    plot_ts, version 3.2.2.")
     print("**********************************")
 
     parser = argparse.ArgumentParser(

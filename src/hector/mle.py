@@ -85,8 +85,31 @@ class MLE:
         self.ln_det_HH = 0.0
         self.nit       = 0
 
+        #--- Can the trajectory model be estimated from these data at all?
+        #    With the columns of H scaled to unit length (so the units of t
+        #    do not count), realistic models have a condition number below
+        #    ~100.  Above 1e8, cond(H'H) exceeds 1/eps and no digit of the
+        #    estimates is reliable, even when the Cholesky happens to succeed
+        #    (Hector 2.2 then printed meaningless numbers): stop and say why.
+        norms = np.linalg.norm(self.H, axis=0)
+        if np.all(norms>0.0):
+            s = np.linalg.svd(self.H/norms, compute_uv=False)
+            independent = s[-1] > 1.0e-8*s[0]
+        else:
+            independent = False
+
         #--- Compute ln(det(H'*H)) [does not depend on noise / covariance]
-        U = np.linalg.cholesky(self.H.T @ self.H)
+        try:
+            U = np.linalg.cholesky(self.H.T @ self.H) if independent else None
+        except np.linalg.LinAlgError:
+            U = None
+        if U is None:
+            print('Error: the trajectory model cannot be estimated from '\
+                  'these data, because some of its terms are (nearly) '\
+                  'indistinguishable:', file=sys.stderr)
+            for reason in des.explain_singular():
+                print('  - ' + reason, file=sys.stderr)
+            sys.exit(1)
         for i in range(0,self.n):
             self.ln_det_HH += math.log(U[i,i])
         self.ln_det_HH *= 2.0

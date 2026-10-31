@@ -1,7 +1,7 @@
 ---
 tm-title: "Hector"
-tm-subtitle: "User Manual version 3.2.1"
-tm-runhead: "Hector v3.2.1 User Manual"
+tm-subtitle: "User Manual version 3.2.2"
+tm-runhead: "Hector v3.2.2 User Manual"
 tm-author: "Machiel S. Bos"
 tm-date: "2026"
 bibliography: references_manual.bib
@@ -734,7 +734,7 @@ The program `estimatetrend` shows the following on the screen:
 
 ```
 ***************************************
-    estimatetrend, version 3.2.1.
+    estimatetrend, version 3.2.2.
 ***************************************
 
 Filename                   : pre_files/TEST.mom
@@ -982,7 +982,7 @@ The output printed on the screen is:
 
 ```
 ***************************************
-    estimatespectrum, version 3.2.1.
+    estimatespectrum, version 3.2.2.
 ***************************************
 
 Filename                   : mom_files/TEST.mom
@@ -4109,6 +4109,52 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
     command-line flags were checked against the code and corrected
     throughout.
 
+## Version 3.2.0
+
+1. **Exact gap correction without approximations.**  For time series with
+   missing data, the log-likelihood needs the gap matrix
+   $\mathbf{M}=\mathbf{F}^T\mathbf{C}^{-1}\mathbf{F}$, the block of the inverse
+   covariance matrix that belongs to the missing epochs.  Versions 3.1.x
+   approximated it by a circulant (Chan) matrix, used as a preconditioner of
+   a conjugate-gradient solver, and estimated its log-determinant with
+   stochastic Lanczos quadrature (eight random probes, fixed seed).  The
+   trend and its uncertainty were correct, but the log-likelihood carried an
+   error of a few hundredths (up to 0.074 at 40 % missing data), which
+   entered likelihood-ratio tests and information criteria.  Version 3.2.0
+   builds $\mathbf{M}$ exactly from the two Gohberg–Semencul vectors that the
+   Toeplitz solver already provides, with one running sum per gap-epoch
+   separation, and factorises it with a Cholesky decomposition.  The
+   log-likelihood now agrees with the full-covariance method to about
+   $10^{-9}$, nothing depends on random numbers, and a run is 1.1–1.4 times
+   faster than with version 3.1.13 on one core (10 % missing data).  The
+   Matérn fall-back of version 3.1.1 is no longer needed, because the exact
+   matrix is always used.  **Log-likelihood, AIC and BIC values of gapped
+   series change in the second or third decimal** compared with versions
+   3.1.0–3.1.13; the estimated parameters change negligibly.
+2. **Single-threaded by default.**  Hector restricts the linear-algebra
+   library underneath NumPy to one thread (see the note in the
+   installation chapter), so that several Hector programs can run side by
+   side without competing for the cores.  Setting any of
+   `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`,
+   `VECLIB_MAXIMUM_THREADS` or `NUMEXPR_NUM_THREADS` yourself restores
+   multi-threading.  The variable `HECTOR_FFTW_THREADS` of version 3.1.1 no
+   longer exists, because the FFTW gap matrix-vector product it controlled
+   has been removed.
+3. **No crash when a factorisation fails.**  If the noise parameters tried
+   by the optimiser give a covariance or gap matrix that cannot be
+   factorised in double precision, that trial is now rejected and the
+   search continues, instead of `estimatetrend` stopping with
+   "Matrix is not positive definite".
+4. **Paper scripts.**  `hector-examples` unpacks the scripts and raw
+   results of the revised paper *"Faster analysis of GNSS time series"*:
+   besides the figures, `run_all.py` now also re-creates Table 4 (the
+   comparison with Hector 2.2, including the number of likelihood
+   evaluations under both stopping rules) and the single-core
+   measurements (threads, memory, parallel runs).  The scripts can be
+   started from any folder, also one whose path contains spaces.  The
+   same material is archived at https://doi.org/10.5281/zenodo.23617991.
+
+
 ## Version 3.2.1
 
 1. **`simulatenoise` reads $\phi$ of `VaryingAnnual` from
@@ -4157,48 +4203,27 @@ parts of Hector that had no coverage yet, which uncovered two real defects.
    computed without Python loops, which makes a run with one of these
    models about 15 % faster; the results change only in the last digits.
 
-## Version 3.2.0
 
-1. **Exact gap correction without approximations.**  For time series with
-   missing data, the log-likelihood needs the gap matrix
-   $\mathbf{M}=\mathbf{F}^T\mathbf{C}^{-1}\mathbf{F}$, the block of the inverse
-   covariance matrix that belongs to the missing epochs.  Versions 3.1.x
-   approximated it by a circulant (Chan) matrix, used as a preconditioner of
-   a conjugate-gradient solver, and estimated its log-determinant with
-   stochastic Lanczos quadrature (eight random probes, fixed seed).  The
-   trend and its uncertainty were correct, but the log-likelihood carried an
-   error of a few hundredths (up to 0.074 at 40 % missing data), which
-   entered likelihood-ratio tests and information criteria.  Version 3.2.0
-   builds $\mathbf{M}$ exactly from the two Gohberg–Semencul vectors that the
-   Toeplitz solver already provides, with one running sum per gap-epoch
-   separation, and factorises it with a Cholesky decomposition.  The
-   log-likelihood now agrees with the full-covariance method to about
-   $10^{-9}$, nothing depends on random numbers, and a run is 1.1–1.4 times
-   faster than with version 3.1.13 on one core (10 % missing data).  The
-   Matérn fall-back of version 3.1.1 is no longer needed, because the exact
-   matrix is always used.  **Log-likelihood, AIC and BIC values of gapped
-   series change in the second or third decimal** compared with versions
-   3.1.0–3.1.13; the estimated parameters change negligibly.
-2. **Single-threaded by default.**  Hector restricts the linear-algebra
-   library underneath NumPy to one thread (see the note in the
-   installation chapter), so that several Hector programs can run side by
-   side without competing for the cores.  Setting any of
-   `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`,
-   `VECLIB_MAXIMUM_THREADS` or `NUMEXPR_NUM_THREADS` yourself restores
-   multi-threading.  The variable `HECTOR_FFTW_THREADS` of version 3.1.1 no
-   longer exists, because the FFTW gap matrix-vector product it controlled
-   has been removed.
-3. **No crash when a factorisation fails.**  If the noise parameters tried
-   by the optimiser give a covariance or gap matrix that cannot be
-   factorised in double precision, that trial is now rejected and the
-   search continues, instead of `estimatetrend` stopping with
-   "Matrix is not positive definite".
-4. **Paper scripts.**  `hector-examples` unpacks the scripts and raw
-   results of the revised paper *"Faster analysis of GNSS time series"*:
-   besides the figures, `run_all.py` now also re-creates Table 4 (the
-   comparison with Hector 2.2, including the number of likelihood
-   evaluations under both stopping rules) and the single-core
-   measurements (threads, memory, parallel runs).  The scripts can be
-   started from any folder, also one whose path contains spaces.  The
-   same material is archived at https://doi.org/10.5281/zenodo.23617991.
+## Version 3.2.2
 
+1. **A trajectory model that cannot be estimated is reported, not
+   computed.** When some terms of the model are (nearly) indistinguishable
+   in the data, for instance periodic signals whose periods are nearly
+   identical over the length of the series, `estimatetrend` stops with a
+   message that
+   names the pairs of periods concerned and how far they drift apart over
+   the series, instead of a Python traceback ("Matrix is not positive
+   definite").  This also catches models that Hector 2.2 accepted without
+   an error but for which it printed meaningless numbers.  A period that
+   is longer than the series, or one given twice, is reported as well.
+2. **Warnings for Hector 2.2 keywords that are no longer used.** Hector 3
+   ignores `estimatevaryingseasonal`, `subtractsignal`, `interpolate`,
+   `WindowFunction`, `OffsetFile`, `Kashyap`, `BIC_c_ExtraPenalty`,
+   `beta_size`, `beta_spacing`, `MonteCarloConfidence` and `TrueParams`.
+   They are still ignored, but Hector now says so when they would have
+   changed the result in Hector 2.2 (for example `estimatevaryingseasonal
+   yes` or `WindowFunction Parzen`).  Both issues were found with a control
+   file sent by Janusz Bogusz.
+3. The paper scripts ship with the results of Hector 3.2.1 (comparison
+   runs, gap-fraction sweep with single-threaded linear algebra, and the
+   single-core measurements).

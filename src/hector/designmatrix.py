@@ -377,6 +377,61 @@ class DesignMatrix(metaclass=SingletonMeta):
                 self.H[:, k_geo + j] = f(t_obs)
 
 
+    def explain_singular(self):
+        """ Reasons why H'H is not positive definite, for the error message.
+
+        Two periods P1 and P2 drift apart by one cycle in 1/|1/P1 - 1/P2|
+        (annual and draconitic: about 26 years); when the series covers only a
+        small part of that cycle their sines and cosines are nearly the same
+        columns.  A period longer than the series looks like the polynomial.
+        The powers of t in days are not a cause: Cholesky is insensitive to
+        the scaling of the columns (degree 12 over 20 years is still exact).
+
+        Returns:
+            list of strings, one per reason (never empty)
+        """
+
+        t = self.ts.data.index.to_numpy()
+        if self.ts.ts_format=='gen':
+            span = (len(t)-1)*self.ts.sampling_period
+            fmt = lambda d: '{0:.4g} time units'.format(d)
+        else:
+            span = t[-1] - t[0]
+            fmt = lambda d: '{0:.1f} years'.format(d/365.25)
+
+        reasons = []
+        periods = self.periods
+        close = []   # (cycles of drift over the series, text), worst first
+        for i in range(len(periods)):
+            for j in range(i+1,len(periods)):
+                df = abs(1.0/periods[i] - 1.0/periods[j])
+                if df==0.0:
+                    reasons.append('period {0:g} is included twice'.\
+                                                    format(periods[i]))
+                elif span*df<1.0:
+                    close.append((span*df, 'periods {0:g} and {1:g} drift '\
+                        'apart by only {2:.2g} cycles over the series (a '\
+                        'full cycle takes {3:s})'.format(periods[i],\
+                        periods[j],span*df,fmt(1.0/df))))
+        close.sort()
+        MAX_SHOWN = 8
+        reasons += [text for _,text in close[:MAX_SHOWN]]
+        if len(close)>MAX_SHOWN:
+            reasons.append('and {0:d} more pairs of periods like these'.\
+                                         format(len(close)-MAX_SHOWN))
+        for p in periods:
+            if p>span:
+                reasons.append('period {0:g} is longer than the series'.\
+                                                                format(p))
+
+        if len(reasons)==0:
+            reasons.append('check the offsets, the periodic signals, the '\
+                'polynomial degree and the other terms of the model')
+        reasons.insert(0,'the series spans {0:s}'.format(fmt(span)))
+        return reasons
+
+
+
     def compute_amp(self,i,theta,error):
         """ Compute amplitude of periodic signal
 
